@@ -8,10 +8,28 @@
   font-display: swap;
 }
 
-@theme {
-  --font-sans: "Montserrat", Arial, sans-serif;
+@font-face {
+    font-family: "Montserrat";
+    src: url("./fonts/Montserrat-Italic-VariableFont_wght.ttf") format("trutype");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+@italic {
+    --font-sans:
 }
 
 body {
   font-family: "Montserrat", Arial, sans-serif;
 }
+
+/* основной фон: #17212b
+левое меню: #242f3d
+карточки/блоки: #1c2733
+hover: #202b36
+активный пункт меню: #2b5278
+акцент/ссылки/кнопки: #5288c1
+основной текст: #ffffff
+вторичный текст: #a8b5c3
+границы: #2f3b48 */
