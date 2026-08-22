@@ -1,11 +1,11 @@
 import { NavLink } from "react-router-dom";
-import ClientsIcon from "./ClientsIcon";
-import AnalyticsIcon from "./AnalyticsIcon";
-import CalendarIcon from "./CalendarIcon";
-import ChatsIcon from "./ChatsIcon";
-import WorkoutPatternsIcon from "./WorkoutPatternsIcon";
-import NutritionProgramIcon from "./NutritionsProgrammIcon";
-import HomeIcon from "./HomeIcon";
+import ClientsIcon from "../icons/ClientsIcon";
+import AnalyticsIcon from "../icons/AnalyticsIcon";
+import CalendarIcon from "../icons/CalendarIcon";
+import ChatsIcon from "../icons/ChatsIcon";
+import WorkoutPatternsIcon from "../icons/WorkoutPatternsIcon";
+import NutritionProgramIcon from "../icons/NutritionsProgrammIcon";
+import HomeIcon from "../icons/HomeIcon";
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   [
