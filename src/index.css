@@ -16,10 +16,6 @@
     font-display: swap;
 }
 
-@italic {
-    --font-sans:
-}
-
 body {
   font-family: "Montserrat", Arial, sans-serif;
 }

@@ -1,12 +1,10 @@
-import Welcome from "./pages/Welcome"
+import AppLayout from "./components/AppLayout"
 
 function App() {
   return (
-    <>
-      <section className="bg-[#17212b] text-[#e5e7eb] fonts-sans">
-        <Welcome />
-      </section>
-    </>
+    <section className="min-h-screen bg-[#17212b] text-[#e5e7eb] font-sans">
+      <AppLayout />
+    </section>
   )
 }
 
