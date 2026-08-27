@@ -1,35 +1,4 @@
 {
-  "clients": [
-    {
-      "id": "1",
-      "firstName": "f",
-      "secondName": "s",
-      "date": "10.12.2024",
-      "height": "",
-      "currentWeight": "",
-      "desiredWeight": "",
-      "goal": ""
-    },
-    {
-      "firstName": "Илья",
-      "secondName": "Патрушев",
-      "date": "2004-11-11",
-      "height": 167,
-      "currentWeight": 40,
-      "desiredWeight": 60,
-      "goal": "ляляля",
-      "id": "XpugRrURnMc"
-    },
-    {
-      "firstName": "Максим",
-      "secondName": "",
-      "date": "",
-      "height": 0,
-      "currentWeight": 0,
-      "desiredWeight": 0,
-      "goal": "",
-      "id": "8VsUWxGVHpg"
-    }
-  ],
+  "clients": [],
   "$schema": "./node_modules/json-server/schema.json"
 }

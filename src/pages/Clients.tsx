@@ -62,6 +62,18 @@ function Clients() {
     setIsAddOpen(false);
   }
 
+  const hadleDelete = async (id: string) => {
+    const response = await fetch(`http://localhost:3000/clients/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Не удалось удалить клиента');
+    }
+
+    setClients((prev) => prev.filter((clients) => clients.id !== id));
+  }
+
 
   return (
     <section>
@@ -221,6 +233,7 @@ function Clients() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => hadleDelete(client.id)}
                   className="cursor-pointer rounded-xl border border-[#2f3b48] bg-[#242f3d] px-4 py-1 
                   text-[#a8b5c3] transition-all hover:bg-[#202b36] hover:text-white"
                 >
