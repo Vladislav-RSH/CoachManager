@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import {
+  isSupabaseConfigured,
+  supabase,
+  type ClientRow,
+  type NewClientRow,
+} from "../lib/supabase";
 
 type Client = {
   id: string;
@@ -10,6 +16,32 @@ type Client = {
   desiredWeight: number;
   goal: string;
 };
+
+const toNullableNumber = (value: FormDataEntryValue | null) => {
+  const textValue = String(value ?? "").trim();
+
+  if (!textValue) {
+    return null;
+  }
+
+  const parsedValue = Number(textValue);
+
+  return Number.isNaN(parsedValue) ? null : parsedValue;
+};
+
+const mapClientRow = (row: ClientRow): Client => ({
+  id: row.id,
+  firstName: row.first_name,
+  secondName: row.second_name,
+  date: row.birth_date ?? "",
+  height: Number(row.height ?? 0),
+  currentWeight: Number(row.current_weight ?? 0),
+  desiredWeight: Number(row.desired_weight ?? 0),
+  goal: row.goal ?? "",
+});
+
+const missingSupabaseMessage =
+  "Добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в .env.local.";
 
 function SearchIcon() {
   return (
@@ -69,18 +101,46 @@ function CloseIcon() {
 function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState("");
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   useEffect(() => {
-    const loadClients = async () => {
-      const response = await fetch("http://localhost:3000/clients");
-      const data = await response.json();
+    let isMounted = true;
 
-      setClients(data);
+    const loadClients = async () => {
+      if (!isSupabaseConfigured || !supabase) {
+        setErrorMessage(missingSupabaseMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setErrorMessage("Не удалось загрузить клиентов из Supabase.");
+        setClients([]);
+      } else {
+        setErrorMessage(null);
+        setClients(((data ?? []) as ClientRow[]).map(mapClientRow));
+      }
+
+      setIsLoading(false);
     };
 
     loadClients();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredClients = clients.filter((client) => {
@@ -95,44 +155,56 @@ function Clients() {
     const form = event.currentTarget;
     const formData = new FormData(form);
 
-    const payload = {
-      firstName: String(formData.get("firstName") ?? ""),
-      secondName: String(formData.get("secondName") ?? ""),
-      date: String(formData.get("date") ?? ""),
-      height: Number(formData.get("height") ?? ""),
-      currentWeight: Number(formData.get("currentWeight") ?? ""),
-      desiredWeight: Number(formData.get("desiredWeight") ?? ""),
-      goal: String(formData.get("goal") ?? ""),
-    };
-
-    const response = await fetch("http://localhost:3000/clients", {
-      method: "POST",
-      headers: {
-        "Content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error("Не удалось создать клиента");
+    if (!isSupabaseConfigured || !supabase) {
+      setErrorMessage(missingSupabaseMessage);
+      return;
     }
 
-    const createdClient = await response.json();
+    const payload: NewClientRow = {
+      first_name: String(formData.get("firstName") ?? "").trim(),
+      second_name: String(formData.get("secondName") ?? "").trim(),
+      birth_date: String(formData.get("date") ?? "") || null,
+      height: toNullableNumber(formData.get("height")),
+      current_weight: toNullableNumber(formData.get("currentWeight")),
+      desired_weight: toNullableNumber(formData.get("desiredWeight")),
+      goal: String(formData.get("goal") ?? "").trim() || null,
+    };
 
-    setClients((prevClients) => [...prevClients, createdClient]);
+    setIsSaving(true);
+
+    const { data, error } = await supabase
+      .from("clients")
+      .insert(payload)
+      .select()
+      .single();
+
+    setIsSaving(false);
+
+    if (error || !data) {
+      setErrorMessage("Не удалось создать клиента в Supabase.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setClients((prevClients) => [mapClientRow(data as ClientRow), ...prevClients]);
     form.reset();
     setIsAddOpen(false);
   };
 
   const handleDelete = async (id: string) => {
-    const response = await fetch(`http://localhost:3000/clients/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Не удалось удалить клиента");
+    if (!isSupabaseConfigured || !supabase) {
+      setErrorMessage(missingSupabaseMessage);
+      return;
     }
 
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+
+    if (error) {
+      setErrorMessage("Не удалось удалить клиента из Supabase.");
+      return;
+    }
+
+    setErrorMessage(null);
     setClients((prev) => prev.filter((clients) => clients.id !== id));
   };
 
@@ -260,9 +332,10 @@ function Clients() {
               </button>
               <button
                 type="submit"
+                disabled={isSaving}
                 className="focus-ring min-h-11 cursor-pointer rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)]"
               >
-                Сохранить
+                {isSaving ? "Сохранение..." : "Сохранить"}
               </button>
             </div>
           </form>
@@ -304,6 +377,18 @@ function Clients() {
           className="focus-ring min-h-12 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-3 pl-12 pr-4 text-left text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
         />
       </label>
+
+      {errorMessage && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+          {errorMessage}
+        </section>
+      )}
+
+      {isLoading && (
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--text-muted)] shadow-sm">
+          Загружаем клиентов...
+        </section>
+      )}
 
       <ul className="grid grid-cols-1 gap-4">
         {filteredClients.map((client) => (
@@ -369,7 +454,7 @@ function Clients() {
         ))}
       </ul>
 
-      {filteredClients.length === 0 && (
+      {!isLoading && filteredClients.length === 0 && (
         <section className="rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-8 text-center">
           <h2 className="text-lg font-bold text-[var(--text)]">
             Клиенты не найдены
