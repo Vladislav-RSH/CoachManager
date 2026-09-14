@@ -1,8 +1,17 @@
+import PagePlaceholder from "../components/PagePlaceholder";
+
 function Calendar() {
   return (
-    <section>
-      <h1 className="text-3xl font-semibold text-white">Календарь</h1>
-    </section>
+    <PagePlaceholder
+      eyebrow="Расписание"
+      title="Календарь"
+      description="Планируйте персональные тренировки, контрольные замеры и групповые занятия в одном календаре."
+      items={[
+        "Дневная и недельная сетка занятий",
+        "Быстрое добавление тренировки",
+        "Напоминания о переносах и отменах",
+      ]}
+    />
   );
 }
 

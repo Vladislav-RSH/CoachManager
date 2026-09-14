@@ -2,56 +2,121 @@ import { NavLink } from "react-router-dom";
 import ClientsIcon from "../icons/ClientsIcon";
 import AnalyticsIcon from "../icons/AnalyticsIcon";
 import CalendarIcon from "../icons/CalendarIcon";
-import ChatsIcon from "../icons/ChatsIcon";
 import WorkoutPatternsIcon from "../icons/WorkoutPatternsIcon";
 import NutritionProgramIcon from "../icons/NutritionsProgrammIcon";
 import HomeIcon from "../icons/HomeIcon";
 
+type LeftBoardProps = {
+  className?: string;
+  onClose?: () => void;
+  onNavigate?: () => void;
+};
+
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   [
-    "group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[15px] transition-all",
+    "group flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-semibold transition-all",
     isActive
-      ? "bg-[#202b36] text-white shadow-[inset_0_0_0_1px_#2f3b48]"
-      : "text-[#a8b5c3] hover:bg-[#202b36] hover:text-white",
+      ? "bg-[var(--accent)] text-white shadow-sm"
+      : "text-slate-300 hover:bg-white/10 hover:text-white",
   ].join(" ");
 
 const menuItems = [
-  { to: "/", label: "Главная", Icon: HomeIcon},
+  { to: "/", label: "Главная", Icon: HomeIcon },
   { to: "/clients", label: "Клиенты", Icon: ClientsIcon },
   { to: "/analytics", label: "Аналитика", Icon: AnalyticsIcon },
   { to: "/calendar", label: "Календарь", Icon: CalendarIcon },
-  { to: "/chats", label: "Чаты", Icon: ChatsIcon },
-  { to: "/workoutpatterns", label: "Программы тренировок", Icon: WorkoutPatternsIcon },
+  {
+    to: "/workoutpatterns",
+    label: "Программы тренировок",
+    Icon: WorkoutPatternsIcon,
+  },
   { to: "/nutritionprograms", label: "Планы питания", Icon: NutritionProgramIcon },
 ];
 
-function LeftBoard() {
+function CloseIcon() {
   return (
-    <aside className="ml-10 mt-10 flex w-[320px] shrink-0 flex-col gap-5 rounded-2xl border border-[#2f3b48] bg-[#242f3d] p-6 text-white">
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="m6 6 12 12M18 6 6 18"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
+  return (
+    <aside
+      className={`flex w-full shrink-0 flex-col rounded-lg border border-white/10 bg-[var(--sidebar)] p-4 text-white shadow-xl shadow-slate-950/10 ${className}`}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
+        <span className="text-sm font-semibold text-slate-300">Навигация</span>
+        {onClose && (
+          <button
+            type="button"
+            title="Закрыть меню"
+            aria-label="Закрыть меню"
+            onClick={onClose}
+            className="focus-ring grid h-10 w-10 place-items-center rounded-lg border border-white/10 text-slate-200 transition hover:bg-white/10 hover:text-white"
+          >
+            <CloseIcon />
+          </button>
+        )}
+      </div>
+
       <NavLink
         to="/profile"
         end
-        className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all hover:bg-[#202b36]"
+        onClick={onNavigate}
+        className="mb-4 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-3 transition-all hover:bg-white/10"
       >
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#17212b] text-lg font-black text-white">
+        <div className="grid h-12 w-12 place-items-center rounded-lg bg-white text-lg font-black text-[var(--sidebar)]">
           ИФ
         </div>
-        <div className="flex flex-col">
-          <span>Илья Ф.</span>
-          <span className="text-sm italic text-[#a8b5c3]">Тренер</span>
+        <div className="min-w-0">
+          <span className="block truncate font-semibold">Илья Ф.</span>
+          <span className="text-sm text-slate-300">Тренер</span>
         </div>
       </NavLink>
 
-      <nav className="flex flex-col gap-2">
+      <div className="mb-5 rounded-lg border border-white/10 bg-white/[0.07] p-3">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="text-slate-300">План дня</span>
+          <span className="font-semibold text-white">68%</span>
+        </div>
+        <div className="h-2 rounded-full bg-white/[0.12]">
+          <div className="h-2 w-[68%] rounded-full bg-[var(--warm)]" />
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1">
         {menuItems.map(({ to, label, Icon }) => (
-          <NavLink key={to} to={to} end className={navItemClass}>
-            <span className="text-current">
+          <NavLink
+            key={to}
+            to={to}
+            end
+            onClick={onNavigate}
+            className={navItemClass}
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/[0.08] text-current transition group-hover:bg-white/[0.12]">
               <Icon />
             </span>
-            <span>{label}</span>
+            <span className="min-w-0 leading-snug">{label}</span>
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.07] p-3 text-sm text-slate-300">
+        <p className="font-semibold text-white">Сегодня</p>
+        <p className="mt-1">5 тренировок, 2 замера, 1 новый клиент</p>
+      </div>
     </aside>
   );
 }

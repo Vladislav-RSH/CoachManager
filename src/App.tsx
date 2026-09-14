@@ -2,7 +2,7 @@ import AppLayout from "./components/AppLayout"
 
 function App() {
   return (
-    <section className="min-h-screen bg-[#17212b] text-[#e5e7eb] font-sans">
+    <section className="app-shell min-h-screen font-sans text-[var(--text)]">
       <AppLayout />
     </section>
   )

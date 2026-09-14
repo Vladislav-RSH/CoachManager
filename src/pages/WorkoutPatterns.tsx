@@ -1,8 +1,17 @@
+import PagePlaceholder from "../components/PagePlaceholder";
+
 function WorkoutPatterns() {
   return (
-    <section>
-      <h1 className="text-3xl font-semibold text-white">Программы тренировок</h1>
-    </section>
+    <PagePlaceholder
+      eyebrow="Библиотека"
+      title="Программы тренировок"
+      description="Собирайте готовые шаблоны тренировок и быстро назначайте их клиентам с учетом цели и уровня подготовки."
+      items={[
+        "Шаблоны для разных целей",
+        "Уровни нагрузки и длительность",
+        "Назначение программы в пару кликов",
+      ]}
+    />
   );
 }
 

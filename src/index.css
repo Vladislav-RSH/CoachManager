@@ -9,23 +9,95 @@
 }
 
 @font-face {
-    font-family: "Montserrat";
-    src: url("./fonts/Montserrat-Italic-VariableFont_wght.ttf") format("trutype");
-    font-weight: 100 900;
-    font-style: italic;
-    font-display: swap;
+  font-family: "Montserrat";
+  src: url("./fonts/Montserrat-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --app-bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --surface-tint: #eef8f6;
+  --surface-warm: #fff6ed;
+  --sidebar: #172033;
+  --sidebar-soft: #21304a;
+  --text: #172033;
+  --text-muted: #667085;
+  --border: #d9e1ea;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --teal: #0f766e;
+  --warm: #f97316;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  font-family: "Montserrat", Arial, sans-serif;
+  min-height: 100%;
 }
 
 body {
-  font-family: "Montserrat", Arial, sans-serif;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.13), transparent 34rem),
+    linear-gradient(180deg, #f8fafc 0%, var(--app-bg) 52%, #eef3f8 100%);
+  color: var(--text);
+  overflow-x: hidden;
 }
 
-/* основной фон: #17212b
-левое меню: #242f3d
-карточки/блоки: #1c2733
-hover: #202b36
-активный пункт меню: #2b5278
-акцент/ссылки/кнопки: #5288c1
-основной текст: #ffffff
-вторичный текст: #a8b5c3
-границы: #2f3b48 */
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c7d2de;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 85% 0%, rgba(249, 115, 22, 0.13), transparent 28rem),
+    radial-gradient(circle at 0% 12%, rgba(15, 118, 110, 0.14), transparent 32rem);
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16);
+}
