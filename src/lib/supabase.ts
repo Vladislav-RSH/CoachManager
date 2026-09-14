@@ -27,6 +27,62 @@ export type NewCalendarAssignmentRow = Omit<
   "id" | "created_at"
 >;
 
+export type WorkoutProgramRow = {
+  id: string;
+  client_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type NewWorkoutProgramRow = Omit<WorkoutProgramRow, "id" | "created_at">;
+
+export type WorkoutTrainingDayRow = {
+  id: string;
+  program_id: string;
+  training_date: string;
+  title: string;
+  content: string;
+  created_at: string;
+};
+
+export type NewWorkoutTrainingDayRow = Omit<
+  WorkoutTrainingDayRow,
+  "id" | "created_at"
+>;
+
+export type WorkoutExerciseIntensity = "low" | "medium" | "high";
+
+export type WorkoutTrainingExerciseRow = {
+  id: string;
+  training_day_id: string;
+  exercise_name: string;
+  order_index: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export type NewWorkoutTrainingExerciseRow = Omit<
+  WorkoutTrainingExerciseRow,
+  "id" | "created_at"
+>;
+
+export type WorkoutExerciseSetRow = {
+  id: string;
+  exercise_id: string;
+  set_number: number;
+  weight_kg: number | null;
+  repetitions: number;
+  intensity: WorkoutExerciseIntensity;
+  notes: string | null;
+  created_at: string;
+};
+
+export type NewWorkoutExerciseSetRow = Omit<
+  WorkoutExerciseSetRow,
+  "id" | "created_at"
+>;
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
