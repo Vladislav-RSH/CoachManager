@@ -14,6 +14,19 @@ export type ClientRow = {
 
 export type NewClientRow = Omit<ClientRow, "id" | "created_at">;
 
+export type CalendarAssignmentRow = {
+  id: string;
+  client_id: string;
+  scheduled_date: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type NewCalendarAssignmentRow = Omit<
+  CalendarAssignmentRow,
+  "id" | "created_at"
+>;
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
