@@ -103,6 +103,67 @@ export type NewWorkoutExerciseSetRow = Omit<
   "id" | "created_at"
 >;
 
+export type NutritionProgramStatus = "draft" | "active" | "archived";
+
+export type NutritionProgramRow = {
+  id: string;
+  client_id: string;
+  title: string;
+  description: string | null;
+  target_calories: number | null;
+  target_protein_g: number | null;
+  target_fat_g: number | null;
+  target_carbs_g: number | null;
+  status: NutritionProgramStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NewNutritionProgramRow = Omit<
+  NutritionProgramRow,
+  "id" | "created_at" | "updated_at"
+>;
+
+export type NutritionMealType =
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "snack";
+
+export type NutritionMealRow = {
+  id: string;
+  nutrition_program_id: string;
+  meal_type: NutritionMealType;
+  name: string;
+  meal_time: string | null;
+  order_index: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export type NewNutritionMealRow = Omit<
+  NutritionMealRow,
+  "id" | "created_at"
+>;
+
+export type NutritionMealItemRow = {
+  id: string;
+  meal_id: string;
+  food_name: string;
+  amount_g: number;
+  calories: number | null;
+  protein_g: number | null;
+  fat_g: number | null;
+  carbs_g: number | null;
+  order_index: number;
+  created_at: string;
+};
+
+export type NewNutritionMealItemRow = Omit<
+  NutritionMealItemRow,
+  "id" | "created_at"
+>;
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
