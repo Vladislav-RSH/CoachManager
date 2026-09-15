@@ -86,16 +86,6 @@ function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
         </div>
       </NavLink>
 
-      <div className="mb-5 rounded-lg border border-white/10 bg-white/[0.07] p-3">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-slate-300">План дня</span>
-          <span className="font-semibold text-white">68%</span>
-        </div>
-        <div className="h-2 rounded-full bg-white/[0.12]">
-          <div className="h-2 w-[68%] rounded-full bg-[var(--warm)]" />
-        </div>
-      </div>
-
       <nav className="flex flex-1 flex-col gap-1">
         {menuItems.map(({ to, label, Icon }) => (
           <NavLink
@@ -113,10 +103,6 @@ function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
         ))}
       </nav>
 
-      <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.07] p-3 text-sm text-slate-300">
-        <p className="font-semibold text-white">Сегодня</p>
-        <p className="mt-1">5 тренировок, 2 замера, 1 новый клиент</p>
-      </div>
     </aside>
   );
 }

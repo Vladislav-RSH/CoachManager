@@ -14,6 +14,26 @@ export type ClientRow = {
 
 export type NewClientRow = Omit<ClientRow, "id" | "created_at">;
 
+export type ClientMeasurementRow = {
+  id: string;
+  client_id: string;
+  measured_at: string;
+  weight_kg: number | null;
+  chest_cm: number | null;
+  waist_cm: number | null;
+  hips_cm: number | null;
+  arm_cm: number | null;
+  thigh_cm: number | null;
+  body_fat_percent: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type NewClientMeasurementRow = Omit<
+  ClientMeasurementRow,
+  "id" | "created_at"
+>;
+
 export type CalendarAssignmentRow = {
   id: string;
   client_id: string;
