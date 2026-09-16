@@ -5,6 +5,9 @@ import CalendarIcon from "../icons/CalendarIcon";
 import WorkoutPatternsIcon from "../icons/WorkoutPatternsIcon";
 import NutritionProgramIcon from "../icons/NutritionsProgrammIcon";
 import HomeIcon from "../icons/HomeIcon";
+import { useAuth } from "../context/AuthContext";
+import { useProfile } from "../context/ProfileContext";
+import { supabase } from "../lib/supabase";
 
 type LeftBoardProps = {
   className?: string;
@@ -51,7 +54,54 @@ function CloseIcon() {
   );
 }
 
+function SignOutIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M14 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H14M11 12h8m0 0-3-3m3 3-3 3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+const getInitials = (fullName: string) => {
+  const initials = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("");
+
+  return initials.toUpperCase() || "Т";
+};
+
 function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const displayName =
+    profile?.fullName.trim() ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Тренер";
+
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+
+    onClose?.();
+  };
+
   return (
     <aside
       className={`flex w-full shrink-0 flex-col rounded-lg border border-white/10 bg-[var(--sidebar)] p-4 text-white shadow-xl shadow-slate-950/10 ${className}`}
@@ -77,12 +127,14 @@ function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
         onClick={onNavigate}
         className="mb-4 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-3 transition-all hover:bg-white/10"
       >
-        <div className="grid h-12 w-12 place-items-center rounded-lg bg-white text-lg font-black text-[var(--sidebar)]">
-          ИФ
+        <div className="brand-mark grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-white text-lg font-black text-[var(--sidebar)]">
+          {getInitials(displayName)}
         </div>
         <div className="min-w-0">
-          <span className="block truncate font-semibold">Илья Ф.</span>
-          <span className="text-sm text-slate-300">Тренер</span>
+          <span className="block truncate font-semibold">{displayName}</span>
+          <span className="block truncate text-sm text-slate-300">
+            {user?.email || "Аккаунт"}
+          </span>
         </div>
       </NavLink>
 
@@ -103,6 +155,17 @@ function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
         ))}
       </nav>
 
+      <button
+        type="button"
+        onClick={handleSignOut}
+        title="Выйти из аккаунта"
+        className="focus-ring mt-4 inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/[0.08]">
+          <SignOutIcon />
+        </span>
+        Выйти
+      </button>
     </aside>
   );
 }

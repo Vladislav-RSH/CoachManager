@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useAuth } from "../context/AuthContext";
 import {
   isSupabaseConfigured,
   supabase,
@@ -211,6 +212,7 @@ function CloseIcon() {
 }
 
 function Clients() {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -331,6 +333,11 @@ function Clients() {
       return;
     }
 
+    if (!user) {
+      setErrorMessage("Войдите в аккаунт, чтобы сохранять клиентов.");
+      return;
+    }
+
     const height = toNullableNumber(formData.get("height"));
     const currentWeight = toNullableNumber(formData.get("currentWeight"));
     const desiredWeight = toNullableNumber(formData.get("desiredWeight"));
@@ -384,6 +391,7 @@ function Clients() {
       hasMeasurementValues || isEditingExistingMeasurement;
 
     const clientPayload: NewClientRow = {
+      trainer_id: user.id,
       first_name: String(formData.get("firstName") ?? "").trim(),
       second_name: String(formData.get("secondName") ?? "").trim(),
       birth_date: String(formData.get("date") ?? "") || null,
@@ -1000,7 +1008,7 @@ function Clients() {
             Клиенты не найдены
           </h2>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Добавьте первого клиента или измените поисковый запрос.
+            Добавьте первого клиента.
           </p>
         </section>
       )}

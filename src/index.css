@@ -35,6 +35,25 @@
   --danger: #dc2626;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #0c1322;
+  --surface: #111827;
+  --surface-soft: #172033;
+  --surface-tint: #112d2d;
+  --surface-warm: #2b2119;
+  --sidebar: #0b1120;
+  --sidebar-soft: #172033;
+  --text: #e5edf7;
+  --text-muted: #94a3b8;
+  --border: #273449;
+  --accent: #60a5fa;
+  --accent-strong: #3b82f6;
+  --teal: #2dd4bf;
+  --warm: #fb923c;
+  --danger: #f87171;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -52,6 +71,15 @@ body {
     linear-gradient(180deg, #f8fafc 0%, var(--app-bg) 52%, #eef3f8 100%);
   color: var(--text);
   overflow-x: hidden;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.1), transparent 34rem),
+    linear-gradient(180deg, #080d18 0%, var(--app-bg) 52%, #0f172a 100%);
 }
 
 #root {
@@ -92,6 +120,29 @@ button {
   background:
     radial-gradient(circle at 85% 0%, rgba(249, 115, 22, 0.13), transparent 28rem),
     radial-gradient(circle at 0% 12%, rgba(15, 118, 110, 0.14), transparent 32rem);
+}
+
+:root[data-theme="dark"] .app-shell {
+  background:
+    radial-gradient(circle at 85% 0%, rgba(251, 146, 60, 0.09), transparent 28rem),
+    radial-gradient(circle at 0% 12%, rgba(45, 212, 191, 0.11), transparent 32rem);
+}
+
+:root[data-theme="dark"] [class~="bg-white"] {
+  background-color: var(--surface) !important;
+}
+
+:root[data-theme="dark"] [class~="bg-white/70"] {
+  background-color: color-mix(
+    in srgb,
+    var(--surface) 88%,
+    transparent
+  ) !important;
+}
+
+:root[data-theme="dark"] .brand-mark {
+  background-color: #ffffff !important;
+  color: var(--sidebar) !important;
 }
 
 .focus-ring {

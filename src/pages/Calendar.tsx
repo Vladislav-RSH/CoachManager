@@ -340,9 +340,6 @@ function Calendar() {
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
           Календарь
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Назначайте клиентов на конкретные дни и смотрите дневную загрузку.
-        </p>
       </div>
 
       {errorMessage && (

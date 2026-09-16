@@ -920,10 +920,6 @@ function Analytics() {
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
           Аналитика клиентов
         </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Отслеживайте замеры тела и силовые показатели по упражнениям и
-          периодам.
-        </p>
       </div>
 
       {errorMessage && (

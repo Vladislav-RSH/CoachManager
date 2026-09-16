@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 244 72" role="img" aria-labelledby="tempo-logo-inverse-title tempo-logo-inverse-desc">
+  <title id="tempo-logo-inverse-title">Tempo</title>
+  <desc id="tempo-logo-inverse-desc">Tempo inverse wordmark with geometric rhythm mark.</desc>
+  <g>
+    <rect x="4" y="8" width="56" height="56" rx="14" fill="#F8FAFC" />
+    <path d="M18 23h28v7h-10v19h-8V30H18z" fill="#172033" />
+    <path d="M18 47c4.8-5.8 10.2-5.8 16 0 4.3 4.3 8.3 4.3 12 0" fill="none" stroke="#14B8A6" stroke-linecap="round" stroke-width="3.6" />
+    <circle cx="47" cy="23" r="3.8" fill="#14B8A6" />
+  </g>
+  <text x="76" y="45" fill="#F8FAFC" font-family="Montserrat, Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="0">Tempo</text>
+  <path d="M77 54h58" stroke="#2DD4BF" stroke-linecap="round" stroke-width="4" />
+</svg>

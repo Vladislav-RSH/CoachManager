@@ -825,10 +825,6 @@ function NutritionPrograms() {
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
           Планы питания
         </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Создавайте рацион под клиента, распределяйте продукты по приемам пищи
-          и сразу контролируйте калории и БЖУ.
-        </p>
       </div>
 
       {errorMessage && (

@@ -1,7 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 
+export type ProfileRow = {
+  id: string;
+  full_name: string;
+  role: string;
+  phone: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NewProfileRow = Omit<ProfileRow, "created_at" | "updated_at">;
+
 export type ClientRow = {
   id: string;
+  trainer_id: string | null;
   first_name: string;
   second_name: string;
   birth_date: string | null;
@@ -12,7 +26,12 @@ export type ClientRow = {
   created_at: string;
 };
 
-export type NewClientRow = Omit<ClientRow, "id" | "created_at">;
+export type NewClientRow = Omit<
+  ClientRow,
+  "id" | "created_at" | "trainer_id"
+> & {
+  trainer_id?: string;
+};
 
 export type ClientMeasurementRow = {
   id: string;

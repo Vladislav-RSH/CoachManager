@@ -895,10 +895,6 @@ function WorkoutPatterns() {
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
           Программы тренировок
         </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Создавайте программы под конкретного клиента и расписывайте план для
-          каждого отдельного тренировочного дня.
-        </p>
       </div>
 
       {errorMessage && (
@@ -1131,10 +1127,6 @@ function WorkoutPatterns() {
                     <h3 className="font-bold text-[var(--text)]">
                       Силовые метрики
                     </h3>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">
-                      Вес, подходы, повторы и интенсивность сохраняются отдельно
-                      для аналитики.
-                    </p>
                   </div>
 
                   <button
