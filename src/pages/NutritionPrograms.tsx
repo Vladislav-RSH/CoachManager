@@ -13,6 +13,11 @@ import {
   type NutritionProgramStatus,
 } from "../lib/supabase";
 import { useProfile } from "../context/ProfileContext";
+import {
+  getDraftStorageKey,
+  readDraft,
+  writeDraft,
+} from "../lib/draftStorage";
 
 type NutritionClient = {
   id: string;
@@ -72,6 +77,23 @@ type NutritionTotals = {
   proteinG: number;
   fatG: number;
   carbsG: number;
+};
+
+type NutritionPageDraft = {
+  selectedClientId: string;
+  selectedProgramId: string;
+  programTitle: string;
+  programDescription: string;
+  programStatus: NutritionProgramStatus;
+  targetCalories: string;
+  targetProteinG: string;
+  targetFatG: string;
+  targetCarbsG: string;
+  mealType: NutritionMealType;
+  mealName: string;
+  mealTime: string;
+  mealNotes: string;
+  itemDrafts: NutritionItemDraft[];
 };
 
 const missingSupabaseMessage =
@@ -142,6 +164,28 @@ const createItemDraft = (): NutritionItemDraft => ({
   fatG: "",
   carbsG: "",
 });
+
+const normalizeNutritionItemDrafts = (
+  value: unknown,
+): NutritionItemDraft[] => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [createItemDraft()];
+  }
+
+  return value.map((draftValue) => {
+    const draft = draftValue as Partial<NutritionItemDraft>;
+
+    return {
+      id: typeof draft.id === "string" ? draft.id : createDraftId(),
+      foodName: typeof draft.foodName === "string" ? draft.foodName : "",
+      amountG: typeof draft.amountG === "string" ? draft.amountG : "",
+      calories: typeof draft.calories === "string" ? draft.calories : "",
+      proteinG: typeof draft.proteinG === "string" ? draft.proteinG : "",
+      fatG: typeof draft.fatG === "string" ? draft.fatG : "",
+      carbsG: typeof draft.carbsG === "string" ? draft.carbsG : "",
+    };
+  });
+};
 
 const mapClientRow = (row: ClientRow): NutritionClient => ({
   id: row.id,
@@ -253,25 +297,76 @@ function TrashIcon() {
 function NutritionPrograms() {
   const { profile } = useProfile();
   const isClient = profile?.role === "client";
+  const nutritionDraftKey = getDraftStorageKey(
+    profile?.id,
+    "nutrition-programs",
+  );
+  const [initialNutritionDraft] = useState(() =>
+    readDraft<NutritionPageDraft>(nutritionDraftKey, {
+      selectedClientId: "",
+      selectedProgramId: "",
+      programTitle: "",
+      programDescription: "",
+      programStatus: "active",
+      targetCalories: "",
+      targetProteinG: "",
+      targetFatG: "",
+      targetCarbsG: "",
+      mealType: "breakfast",
+      mealName: "",
+      mealTime: "",
+      mealNotes: "",
+      itemDrafts: [createItemDraft()],
+    }),
+  );
   const [clients, setClients] = useState<NutritionClient[]>([]);
   const [programs, setPrograms] = useState<NutritionProgram[]>([]);
   const [meals, setMeals] = useState<NutritionMeal[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [selectedProgramId, setSelectedProgramId] = useState("");
-  const [programTitle, setProgramTitle] = useState("");
-  const [programDescription, setProgramDescription] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState(
+    initialNutritionDraft.selectedClientId,
+  );
+  const [selectedProgramId, setSelectedProgramId] = useState(
+    initialNutritionDraft.selectedProgramId,
+  );
+  const [programTitle, setProgramTitle] = useState(
+    initialNutritionDraft.programTitle,
+  );
+  const [programDescription, setProgramDescription] = useState(
+    initialNutritionDraft.programDescription,
+  );
   const [programStatus, setProgramStatus] =
-    useState<NutritionProgramStatus>("active");
-  const [targetCalories, setTargetCalories] = useState("");
-  const [targetProteinG, setTargetProteinG] = useState("");
-  const [targetFatG, setTargetFatG] = useState("");
-  const [targetCarbsG, setTargetCarbsG] = useState("");
-  const [mealType, setMealType] = useState<NutritionMealType>("breakfast");
-  const [mealName, setMealName] = useState("");
-  const [mealTime, setMealTime] = useState("");
-  const [mealNotes, setMealNotes] = useState("");
+    useState<NutritionProgramStatus>(
+      initialNutritionDraft.programStatus === "draft" ||
+        initialNutritionDraft.programStatus === "active" ||
+        initialNutritionDraft.programStatus === "archived"
+        ? initialNutritionDraft.programStatus
+        : "active",
+    );
+  const [targetCalories, setTargetCalories] = useState(
+    initialNutritionDraft.targetCalories,
+  );
+  const [targetProteinG, setTargetProteinG] = useState(
+    initialNutritionDraft.targetProteinG,
+  );
+  const [targetFatG, setTargetFatG] = useState(
+    initialNutritionDraft.targetFatG,
+  );
+  const [targetCarbsG, setTargetCarbsG] = useState(
+    initialNutritionDraft.targetCarbsG,
+  );
+  const [mealType, setMealType] = useState<NutritionMealType>(
+    initialNutritionDraft.mealType === "breakfast" ||
+      initialNutritionDraft.mealType === "lunch" ||
+      initialNutritionDraft.mealType === "dinner" ||
+      initialNutritionDraft.mealType === "snack"
+      ? initialNutritionDraft.mealType
+      : "breakfast",
+  );
+  const [mealName, setMealName] = useState(initialNutritionDraft.mealName);
+  const [mealTime, setMealTime] = useState(initialNutritionDraft.mealTime);
+  const [mealNotes, setMealNotes] = useState(initialNutritionDraft.mealNotes);
   const [itemDrafts, setItemDrafts] = useState<NutritionItemDraft[]>(() => [
-    createItemDraft(),
+    ...normalizeNutritionItemDrafts(initialNutritionDraft.itemDrafts),
   ]);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const [isProgramsLoading, setIsProgramsLoading] = useState(false);
@@ -279,6 +374,46 @@ function NutritionPrograms() {
   const [isProgramSaving, setIsProgramSaving] = useState(false);
   const [isMealSaving, setIsMealSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isClient) {
+      return;
+    }
+
+    writeDraft<NutritionPageDraft>(nutritionDraftKey, {
+      selectedClientId,
+      selectedProgramId,
+      programTitle,
+      programDescription,
+      programStatus,
+      targetCalories,
+      targetProteinG,
+      targetFatG,
+      targetCarbsG,
+      mealType,
+      mealName,
+      mealTime,
+      mealNotes,
+      itemDrafts,
+    });
+  }, [
+    isClient,
+    itemDrafts,
+    mealName,
+    mealNotes,
+    mealTime,
+    mealType,
+    nutritionDraftKey,
+    programDescription,
+    programStatus,
+    programTitle,
+    selectedClientId,
+    selectedProgramId,
+    targetCalories,
+    targetCarbsG,
+    targetFatG,
+    targetProteinG,
+  ]);
 
   useEffect(() => {
     let isMounted = true;

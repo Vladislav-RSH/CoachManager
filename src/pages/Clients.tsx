@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { createClientInviteLink } from "../lib/clientInvitations";
 import {
+  getDraftStorageKey,
+  readDraft,
+  removeDraft,
+  writeDraft,
+} from "../lib/draftStorage";
+import {
   isSupabaseConfigured,
   supabase,
   type ClientMeasurementRow,
@@ -36,6 +42,25 @@ type Client = {
   desiredWeight: number | null;
   goal: string;
   measurements: ClientMeasurement[];
+};
+
+type ClientFormDraft = {
+  firstName: string;
+  secondName: string;
+  date: string;
+  height: string;
+  currentWeight: string;
+  desiredWeight: string;
+  goal: string;
+  measurementDate: string;
+  measurementWeight: string;
+  chest: string;
+  waist: string;
+  hips: string;
+  arm: string;
+  thigh: string;
+  bodyFat: string;
+  measurementNotes: string;
 };
 
 const missingSupabaseMessage =
@@ -133,6 +158,52 @@ const mergeMeasurement = (
         existingMeasurement.measuredAt !== measurement.measuredAt,
     ),
   ]),
+});
+
+const stringifyNullableNumber = (value: number | null | undefined) =>
+  value === null || value === undefined ? "" : String(value);
+
+const createClientFormDraft = (
+  client?: Client | null,
+  measurement?: ClientMeasurement,
+): ClientFormDraft => ({
+  firstName: client?.firstName ?? "",
+  secondName: client?.secondName ?? "",
+  date: client?.date ?? "",
+  height: stringifyNullableNumber(client?.height),
+  currentWeight: stringifyNullableNumber(client?.currentWeight),
+  desiredWeight: stringifyNullableNumber(client?.desiredWeight),
+  goal: client?.goal ?? "",
+  measurementDate: measurement?.measuredAt ?? todayDateKey(),
+  measurementWeight: stringifyNullableNumber(measurement?.weightKg),
+  chest: stringifyNullableNumber(measurement?.chestCm),
+  waist: stringifyNullableNumber(measurement?.waistCm),
+  hips: stringifyNullableNumber(measurement?.hipsCm),
+  arm: stringifyNullableNumber(measurement?.armCm),
+  thigh: stringifyNullableNumber(measurement?.thighCm),
+  bodyFat: stringifyNullableNumber(measurement?.bodyFatPercent),
+  measurementNotes: measurement?.notes ?? "",
+});
+
+const getClientFormDraftFromFormData = (
+  formData: FormData,
+): ClientFormDraft => ({
+  firstName: String(formData.get("firstName") ?? ""),
+  secondName: String(formData.get("secondName") ?? ""),
+  date: String(formData.get("date") ?? ""),
+  height: String(formData.get("height") ?? ""),
+  currentWeight: String(formData.get("currentWeight") ?? ""),
+  desiredWeight: String(formData.get("desiredWeight") ?? ""),
+  goal: String(formData.get("goal") ?? ""),
+  measurementDate: String(formData.get("measurementDate") ?? ""),
+  measurementWeight: String(formData.get("measurementWeight") ?? ""),
+  chest: String(formData.get("chest") ?? ""),
+  waist: String(formData.get("waist") ?? ""),
+  hips: String(formData.get("hips") ?? ""),
+  arm: String(formData.get("arm") ?? ""),
+  thigh: String(formData.get("thigh") ?? ""),
+  bodyFat: String(formData.get("bodyFat") ?? ""),
+  measurementNotes: String(formData.get("measurementNotes") ?? ""),
 });
 
 function SearchIcon() {
@@ -247,6 +318,9 @@ function Clients() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviteClientName, setInviteClientName] = useState("");
   const [isLinkCopied, setIsLinkCopied] = useState(false);
+  const [clientFormDraft, setClientFormDraft] = useState<ClientFormDraft>(() =>
+    createClientFormDraft(),
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -331,14 +405,26 @@ function Clients() {
 
   const editingClient = clients.find((client) => client.id === editingClientId);
   const latestMeasurement = editingClient?.measurements[0];
+  const clientFormDraftKey = useMemo(
+    () => getDraftStorageKey(user?.id, "client-form", editingClientId ?? "new"),
+    [editingClientId, user?.id],
+  );
 
   const openCreateForm = () => {
+    const draftKey = getDraftStorageKey(user?.id, "client-form", "new");
+
     setEditingClientId(null);
+    setClientFormDraft(readDraft(draftKey, createClientFormDraft()));
     setIsFormOpen(true);
   };
 
   const openEditForm = (client: Client) => {
+    const draftKey = getDraftStorageKey(user?.id, "client-form", client.id);
+
     setEditingClientId(client.id);
+    setClientFormDraft(
+      readDraft(draftKey, createClientFormDraft(client, client.measurements[0])),
+    );
     setIsFormOpen(true);
   };
 
@@ -347,6 +433,15 @@ function Clients() {
       setIsFormOpen(false);
       setEditingClientId(null);
     }
+  };
+
+  const handleClientFormInput = (event: FormEvent<HTMLFormElement>) => {
+    const nextDraft = getClientFormDraftFromFormData(
+      new FormData(event.currentTarget),
+    );
+
+    setClientFormDraft(nextDraft);
+    writeDraft(clientFormDraftKey, nextDraft);
   };
 
   const handleCreateInvitation = async (clientId: string) => {
@@ -586,6 +681,8 @@ function Clients() {
     setIsSaving(false);
     setIsFormOpen(false);
     setEditingClientId(null);
+    removeDraft(clientFormDraftKey);
+    setClientFormDraft(createClientFormDraft());
     form.reset();
   };
 
@@ -675,6 +772,7 @@ function Clients() {
               key={editingClientId ?? "new-client"}
               className="w-full max-w-3xl rounded-lg bg-[var(--surface)] p-5 text-[var(--text)] shadow-2xl sm:p-6"
               onClick={(event) => event.stopPropagation()}
+              onInput={handleClientFormInput}
               onSubmit={handleSaveClient}
             >
             <div className="mb-6 flex items-start justify-between gap-4">
@@ -708,7 +806,7 @@ function Clients() {
                   type="text"
                   name="firstName"
                   required
-                  defaultValue={editingClient?.firstName ?? ""}
+                  defaultValue={clientFormDraft.firstName}
                   placeholder="Например, Клиент"
                   className={inputClass}
                 />
@@ -722,7 +820,7 @@ function Clients() {
                   type="text"
                   name="secondName"
                   required
-                  defaultValue={editingClient?.secondName ?? ""}
+                  defaultValue={clientFormDraft.secondName}
                   placeholder="Например, 01 или инициалы"
                   className={inputClass}
                 />
@@ -735,7 +833,7 @@ function Clients() {
                 <input
                   type="date"
                   name="date"
-                  defaultValue={editingClient?.date ?? ""}
+                  defaultValue={clientFormDraft.date}
                   className={inputClass}
                 />
               </label>
@@ -749,7 +847,7 @@ function Clients() {
                   name="height"
                   min="0"
                   step="0.1"
-                  defaultValue={editingClient?.height ?? ""}
+                  defaultValue={clientFormDraft.height}
                   className={inputClass}
                 />
               </label>
@@ -763,7 +861,7 @@ function Clients() {
                   name="currentWeight"
                   min="0"
                   step="0.1"
-                  defaultValue={editingClient?.currentWeight ?? ""}
+                  defaultValue={clientFormDraft.currentWeight}
                   className={inputClass}
                 />
               </label>
@@ -777,7 +875,7 @@ function Clients() {
                   name="desiredWeight"
                   min="0"
                   step="0.1"
-                  defaultValue={editingClient?.desiredWeight ?? ""}
+                  defaultValue={clientFormDraft.desiredWeight}
                   className={inputClass}
                 />
               </label>
@@ -787,7 +885,7 @@ function Clients() {
               <span className="mb-2 block text-sm font-semibold">Цель</span>
               <textarea
                 name="goal"
-                defaultValue={editingClient?.goal ?? ""}
+                defaultValue={clientFormDraft.goal}
                 className="focus-ring min-h-24 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                 placeholder="Набор массы, похудение, восстановление..."
               />
@@ -817,7 +915,7 @@ function Clients() {
                     type="date"
                     name="measurementDate"
                     required
-                    defaultValue={latestMeasurement?.measuredAt ?? todayDateKey()}
+                    defaultValue={clientFormDraft.measurementDate}
                     className={inputClass}
                   />
                 </label>
@@ -831,7 +929,7 @@ function Clients() {
                     name="measurementWeight"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.weightKg ?? ""}
+                    defaultValue={clientFormDraft.measurementWeight}
                     className={inputClass}
                   />
                 </label>
@@ -845,7 +943,7 @@ function Clients() {
                     name="chest"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.chestCm ?? ""}
+                    defaultValue={clientFormDraft.chest}
                     className={inputClass}
                   />
                 </label>
@@ -859,7 +957,7 @@ function Clients() {
                     name="waist"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.waistCm ?? ""}
+                    defaultValue={clientFormDraft.waist}
                     className={inputClass}
                   />
                 </label>
@@ -873,7 +971,7 @@ function Clients() {
                     name="hips"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.hipsCm ?? ""}
+                    defaultValue={clientFormDraft.hips}
                     className={inputClass}
                   />
                 </label>
@@ -887,7 +985,7 @@ function Clients() {
                     name="arm"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.armCm ?? ""}
+                    defaultValue={clientFormDraft.arm}
                     className={inputClass}
                   />
                 </label>
@@ -901,7 +999,7 @@ function Clients() {
                     name="thigh"
                     min="0"
                     step="0.1"
-                    defaultValue={latestMeasurement?.thighCm ?? ""}
+                    defaultValue={clientFormDraft.thigh}
                     className={inputClass}
                   />
                 </label>
@@ -916,7 +1014,7 @@ function Clients() {
                     min="0"
                     max="100"
                     step="0.1"
-                    defaultValue={latestMeasurement?.bodyFatPercent ?? ""}
+                    defaultValue={clientFormDraft.bodyFat}
                     className={inputClass}
                   />
                 </label>
@@ -928,7 +1026,7 @@ function Clients() {
                 </span>
                 <textarea
                   name="measurementNotes"
-                  defaultValue={latestMeasurement?.notes ?? ""}
+                  defaultValue={clientFormDraft.measurementNotes}
                   className="focus-ring min-h-20 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                   placeholder="Условия замера, самочувствие, комментарий..."
                 />

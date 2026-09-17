@@ -6,7 +6,6 @@ import {
   type ClientRow,
   type NewWorkoutExerciseSetRow,
   type NewWorkoutProgramRow,
-  type NewWorkoutTrainingExerciseRow,
   type NewWorkoutTrainingDayRow,
   type WorkoutExerciseSetRow,
   type WorkoutExerciseIntensity,
@@ -15,6 +14,11 @@ import {
   type WorkoutTrainingDayRow,
 } from "../lib/supabase";
 import { useProfile } from "../context/ProfileContext";
+import {
+  getDraftStorageKey,
+  readDraft,
+  writeDraft,
+} from "../lib/draftStorage";
 
 type WorkoutClient = {
   id: string;
@@ -77,13 +81,27 @@ type NormalizedExerciseDraft = {
   exerciseName: string;
   orderIndex: number;
   notes: string | null;
-  sets: Omit<NewWorkoutExerciseSetRow, "exercise_id">[];
+  sets: (Omit<NewWorkoutExerciseSetRow, "exercise_id"> & {
+    draftId: string;
+  })[];
 };
 
 type ScheduledTrainingDay = {
   id: string;
   scheduledDate: string;
   note: string;
+};
+
+type WorkoutPageDraft = {
+  selectedClientId: string;
+  selectedProgramId: string;
+  editingTrainingDayId: string | null;
+  programTitle: string;
+  programDescription: string;
+  dayDate: string;
+  dayTitle: string;
+  dayContent: string;
+  exerciseDrafts: WorkoutExerciseDraft[];
 };
 
 const missingSupabaseMessage =
@@ -212,6 +230,78 @@ const createExerciseDraft = (): WorkoutExerciseDraft => ({
   sets: [createSetDraft()],
 });
 
+const normalizeWorkoutExerciseDrafts = (
+  value: unknown,
+): WorkoutExerciseDraft[] => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [createExerciseDraft()];
+  }
+
+  return value.map((draftValue) => {
+    const draft = draftValue as Partial<WorkoutExerciseDraft>;
+    const sets =
+      Array.isArray(draft.sets) && draft.sets.length > 0
+        ? draft.sets
+        : [createSetDraft()];
+
+    return {
+      id: typeof draft.id === "string" ? draft.id : createDraftId(),
+      exerciseName:
+        typeof draft.exerciseName === "string" ? draft.exerciseName : "",
+      notes: typeof draft.notes === "string" ? draft.notes : "",
+      sets: sets.map((setValue) => {
+        const exerciseSet = setValue as Partial<WorkoutSetDraft>;
+        const intensity = exerciseSet.intensity;
+
+        return {
+          id:
+            typeof exerciseSet.id === "string"
+              ? exerciseSet.id
+              : createDraftId(),
+          weightKg:
+            typeof exerciseSet.weightKg === "string"
+              ? exerciseSet.weightKg
+              : "",
+          repetitions:
+            typeof exerciseSet.repetitions === "string"
+              ? exerciseSet.repetitions
+              : "10",
+          intensity:
+            intensity === "low" || intensity === "medium" || intensity === "high"
+              ? intensity
+              : "medium",
+          notes:
+            typeof exerciseSet.notes === "string" ? exerciseSet.notes : "",
+        };
+      }),
+    };
+  });
+};
+
+const mapTrainingDayToExerciseDrafts = (
+  trainingDay: WorkoutTrainingDay,
+): WorkoutExerciseDraft[] =>
+  trainingDay.exercises.length === 0
+    ? [createExerciseDraft()]
+    : trainingDay.exercises.map((exercise) => ({
+        id: exercise.id,
+        exerciseName: exercise.exerciseName,
+        notes: exercise.notes,
+        sets:
+          exercise.sets.length === 0
+            ? [createSetDraft()]
+            : exercise.sets.map((exerciseSet) => ({
+                id: exerciseSet.id,
+                weightKg:
+                  exerciseSet.weightKg === null
+                    ? ""
+                    : String(exerciseSet.weightKg),
+                repetitions: String(exerciseSet.repetitions),
+                intensity: exerciseSet.intensity,
+                notes: exerciseSet.notes,
+              })),
+      }));
+
 function PlusIcon() {
   return (
     <svg
@@ -234,27 +324,84 @@ function WorkoutPatterns() {
   const { profile } = useProfile();
   const isClient = profile?.role === "client";
   const todayDateKey = useMemo(() => formatDateKey(new Date()), []);
+  const workoutDraftKey = getDraftStorageKey(profile?.id, "workout-patterns");
+  const [initialWorkoutDraft] = useState(() =>
+    readDraft<WorkoutPageDraft>(workoutDraftKey, {
+      selectedClientId: "",
+      selectedProgramId: "",
+      editingTrainingDayId: null,
+      programTitle: "",
+      programDescription: "",
+      dayDate: todayDateKey,
+      dayTitle: "",
+      dayContent: "",
+      exerciseDrafts: [createExerciseDraft()],
+    }),
+  );
   const [clients, setClients] = useState<WorkoutClient[]>([]);
   const [programs, setPrograms] = useState<WorkoutProgram[]>([]);
   const [trainingDays, setTrainingDays] = useState<WorkoutTrainingDay[]>([]);
   const [scheduledDays, setScheduledDays] = useState<ScheduledTrainingDay[]>(
     [],
   );
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [selectedProgramId, setSelectedProgramId] = useState("");
-  const [programTitle, setProgramTitle] = useState("");
-  const [programDescription, setProgramDescription] = useState("");
-  const [dayDate, setDayDate] = useState(todayDateKey);
-  const [dayTitle, setDayTitle] = useState("");
-  const [dayContent, setDayContent] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState(
+    initialWorkoutDraft.selectedClientId,
+  );
+  const [selectedProgramId, setSelectedProgramId] = useState(
+    initialWorkoutDraft.selectedProgramId,
+  );
+  const [editingTrainingDayId, setEditingTrainingDayId] = useState<
+    string | null
+  >(initialWorkoutDraft.editingTrainingDayId);
+  const [programTitle, setProgramTitle] = useState(
+    initialWorkoutDraft.programTitle,
+  );
+  const [programDescription, setProgramDescription] = useState(
+    initialWorkoutDraft.programDescription,
+  );
+  const [dayDate, setDayDate] = useState(
+    initialWorkoutDraft.dayDate || todayDateKey,
+  );
+  const [dayTitle, setDayTitle] = useState(initialWorkoutDraft.dayTitle);
+  const [dayContent, setDayContent] = useState(initialWorkoutDraft.dayContent);
   const [exerciseDrafts, setExerciseDrafts] = useState<WorkoutExerciseDraft[]>(
-    () => [createExerciseDraft()],
+    () => normalizeWorkoutExerciseDrafts(initialWorkoutDraft.exerciseDrafts),
   );
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const [isProgramDataLoading, setIsProgramDataLoading] = useState(false);
   const [isProgramSaving, setIsProgramSaving] = useState(false);
   const [isDaySaving, setIsDaySaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isClient) {
+      return;
+    }
+
+    writeDraft<WorkoutPageDraft>(workoutDraftKey, {
+      selectedClientId,
+      selectedProgramId,
+      editingTrainingDayId,
+      programTitle,
+      programDescription,
+      dayDate,
+      dayTitle,
+      dayContent,
+      exerciseDrafts,
+    });
+  }, [
+    dayContent,
+    dayDate,
+    dayTitle,
+    exerciseDrafts,
+    editingTrainingDayId,
+    isClient,
+    programDescription,
+    programTitle,
+    selectedClientId,
+    selectedProgramId,
+    workoutDraftKey,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -518,6 +665,9 @@ function WorkoutPatterns() {
   const selectedProgram = programs.find(
     (program) => program.id === selectedProgramId,
   );
+  const editingTrainingDay = trainingDays.find(
+    (trainingDay) => trainingDay.id === editingTrainingDayId,
+  );
 
   const handleCreateProgram = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -587,6 +737,14 @@ function WorkoutPatterns() {
       const nextSelectedProgram = programs.find((program) => program.id !== id);
       setSelectedProgramId(nextSelectedProgram?.id ?? "");
     }
+  };
+
+  const handleSelectProgram = (programId: string) => {
+    if (programId !== selectedProgramId) {
+      resetTrainingDayForm();
+    }
+
+    setSelectedProgramId(programId);
   };
 
   const handleExerciseDraftChange = (
@@ -705,6 +863,7 @@ function WorkoutPatterns() {
       orderIndex: exerciseIndex,
       notes: draft.notes.trim() || null,
       sets: sets.map(({ repetitions, set, setIndex, weightKg }) => ({
+        draftId: set.id,
         set_number: setIndex + 1,
         weight_kg: weightKg,
         repetitions,
@@ -714,7 +873,166 @@ function WorkoutPatterns() {
     }));
   };
 
-  const handleCreateTrainingDay = async (event: FormEvent<HTMLFormElement>) => {
+  const saveTrainingDayExercises = async (
+    trainingDayId: string,
+    normalizedExercises: NormalizedExerciseDraft[],
+    previousTrainingDay?: WorkoutTrainingDay,
+  ): Promise<WorkoutTrainingExercise[] | null> => {
+    const supabaseClient = supabase;
+
+    if (!supabaseClient) {
+      setErrorMessage(missingSupabaseMessage);
+      return null;
+    }
+
+    const previousExercisesById = new Map(
+      (previousTrainingDay?.exercises ?? []).map((exercise) => [
+        exercise.id,
+        exercise,
+      ]),
+    );
+    const keptExerciseIds = new Set(
+      normalizedExercises
+        .filter((exercise) => previousExercisesById.has(exercise.draftId))
+        .map((exercise) => exercise.draftId),
+    );
+    const removedExerciseIds = (previousTrainingDay?.exercises ?? [])
+      .filter((exercise) => !keptExerciseIds.has(exercise.id))
+      .map((exercise) => exercise.id);
+
+    if (removedExerciseIds.length > 0) {
+      const { error } = await supabaseClient
+        .from("workout_training_exercises")
+        .delete()
+        .in("id", removedExerciseIds);
+
+      if (error) {
+        setErrorMessage("Не удалось удалить убранные упражнения.");
+        return null;
+      }
+    }
+
+    const savedExercises: WorkoutTrainingExercise[] = [];
+
+    for (const exercise of normalizedExercises) {
+      const previousExercise = previousExercisesById.get(exercise.draftId);
+      const exercisePayload = {
+        training_day_id: trainingDayId,
+        exercise_name: exercise.exerciseName,
+        order_index: exercise.orderIndex,
+        notes: exercise.notes,
+      };
+      const exerciseResponse = previousExercise
+        ? await supabaseClient
+            .from("workout_training_exercises")
+            .update(exercisePayload)
+            .eq("id", previousExercise.id)
+            .select()
+            .single()
+        : await supabaseClient
+            .from("workout_training_exercises")
+            .insert(exercisePayload)
+            .select()
+            .single();
+
+      if (exerciseResponse.error || !exerciseResponse.data) {
+        setErrorMessage("Не удалось сохранить упражнения тренировки.");
+        return null;
+      }
+
+      const savedExercise = mapExerciseRow(
+        exerciseResponse.data as WorkoutTrainingExerciseRow,
+      );
+      const previousSetsById = new Map(
+        (previousExercise?.sets ?? []).map((exerciseSet) => [
+          exerciseSet.id,
+          exerciseSet,
+        ]),
+      );
+      const keptSetIds = new Set(
+        exercise.sets
+          .filter((exerciseSet) => previousSetsById.has(exerciseSet.draftId))
+          .map((exerciseSet) => exerciseSet.draftId),
+      );
+      const removedSetIds = (previousExercise?.sets ?? [])
+        .filter((exerciseSet) => !keptSetIds.has(exerciseSet.id))
+        .map((exerciseSet) => exerciseSet.id);
+
+      if (removedSetIds.length > 0) {
+        const { error } = await supabaseClient
+          .from("workout_exercise_sets")
+          .delete()
+          .in("id", removedSetIds);
+
+        if (error) {
+          setErrorMessage("Не удалось удалить убранные подходы.");
+          return null;
+        }
+      }
+
+      const savedSets: WorkoutExerciseSet[] = [];
+
+      for (const exerciseSet of exercise.sets) {
+        const { draftId: setDraftId, ...setPayload } = exerciseSet;
+        const previousSet = previousSetsById.get(setDraftId);
+        const setResponse = previousSet
+          ? await supabaseClient
+              .from("workout_exercise_sets")
+              .update(setPayload)
+              .eq("id", previousSet.id)
+              .select()
+              .single()
+          : await supabaseClient
+              .from("workout_exercise_sets")
+              .insert({
+                ...setPayload,
+                exercise_id: savedExercise.id,
+              })
+              .select()
+              .single();
+
+        if (setResponse.error || !setResponse.data) {
+          setErrorMessage("Не удалось сохранить подходы тренировки.");
+          return null;
+        }
+
+        savedSets.push(mapSetRow(setResponse.data as WorkoutExerciseSetRow));
+      }
+
+      savedExercises.push({
+        ...savedExercise,
+        sets: savedSets.sort(
+          (firstSet, secondSet) => firstSet.setNumber - secondSet.setNumber,
+        ),
+      });
+    }
+
+    return savedExercises;
+  };
+
+  const resetTrainingDayForm = () => {
+    setEditingTrainingDayId(null);
+    setDayTitle("");
+    setDayContent("");
+    setExerciseDrafts([createExerciseDraft()]);
+  };
+
+  const handleEditTrainingDay = (trainingDay: WorkoutTrainingDay) => {
+    setEditingTrainingDayId(trainingDay.id);
+    setDayDate(trainingDay.trainingDate);
+    setDayTitle(trainingDay.title);
+    setDayContent(trainingDay.content);
+    setExerciseDrafts(mapTrainingDayToExerciseDrafts(trainingDay));
+    setErrorMessage(null);
+
+    window.setTimeout(() => {
+      document
+        .getElementById("workout-day-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
+  const handleSaveTrainingDay = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!isSupabaseConfigured || !supabase) {
@@ -740,9 +1058,70 @@ function WorkoutPatterns() {
       content: dayContent.trim(),
     };
 
+    if (editingTrainingDayId && !editingTrainingDay) {
+      setErrorMessage("Редактируемый тренировочный день не найден.");
+      return;
+    }
+
+    const supabaseClient = supabase;
+
     setIsDaySaving(true);
 
-    const { data, error } = await supabase
+    if (editingTrainingDayId) {
+      const { data, error } = await supabaseClient
+        .from("workout_training_days")
+        .update(payload)
+        .eq("id", editingTrainingDayId)
+        .select()
+        .single();
+
+      if (error || !data) {
+        setIsDaySaving(false);
+        setErrorMessage(
+          error?.code === "23505"
+            ? "В этой программе уже есть план на выбранный день."
+            : "Не удалось обновить тренировочный день.",
+        );
+        return;
+      }
+
+      const updatedTrainingDay = mapTrainingDayRow(
+        data as WorkoutTrainingDayRow,
+      );
+      const savedExercises = await saveTrainingDayExercises(
+        updatedTrainingDay.id,
+        normalizedExercises,
+        editingTrainingDay,
+      );
+
+      if (!savedExercises) {
+        setIsDaySaving(false);
+        return;
+      }
+
+      const nextTrainingDay: WorkoutTrainingDay = {
+        ...updatedTrainingDay,
+        exercises: savedExercises,
+      };
+
+      setErrorMessage(null);
+      setIsDaySaving(false);
+      setTrainingDays((currentDays) =>
+        currentDays
+          .map((trainingDay) =>
+            trainingDay.id === nextTrainingDay.id
+              ? nextTrainingDay
+              : trainingDay,
+          )
+          .sort((firstDay, secondDay) =>
+            firstDay.trainingDate.localeCompare(secondDay.trainingDate),
+          ),
+      );
+      resetTrainingDayForm();
+      return;
+    }
+
+    const { data, error } = await supabaseClient
       .from("workout_training_days")
       .insert(payload)
       .select()
@@ -759,95 +1138,20 @@ function WorkoutPatterns() {
     }
 
     const createdTrainingDay = mapTrainingDayRow(data as WorkoutTrainingDayRow);
-    const exercisePayloads: NewWorkoutTrainingExerciseRow[] =
-      normalizedExercises.map((exercise) => ({
-        training_day_id: createdTrainingDay.id,
-        exercise_name: exercise.exerciseName,
-        order_index: exercise.orderIndex,
-        notes: exercise.notes,
-      }));
+    const savedExercises = await saveTrainingDayExercises(
+      createdTrainingDay.id,
+      normalizedExercises,
+    );
 
-    const { data: exerciseData, error: exerciseError } = await supabase
-      .from("workout_training_exercises")
-      .insert(exercisePayloads)
-      .select();
-
-    if (exerciseError || !exerciseData) {
-      await supabase
+    if (!savedExercises) {
+      await supabaseClient
         .from("workout_training_days")
         .delete()
         .eq("id", createdTrainingDay.id);
 
       setIsDaySaving(false);
-      setErrorMessage("Не удалось сохранить упражнения тренировки.");
       return;
     }
-
-    const exerciseRows = exerciseData as WorkoutTrainingExerciseRow[];
-    const exerciseRowsByOrderIndex = new Map(
-      exerciseRows.map((exercise) => [exercise.order_index, exercise]),
-    );
-    const setPayloads: NewWorkoutExerciseSetRow[] = normalizedExercises.flatMap(
-      (exercise) => {
-        const exerciseRow = exerciseRowsByOrderIndex.get(exercise.orderIndex);
-
-        if (!exerciseRow) {
-          return [];
-        }
-
-        return exercise.sets.map((exerciseSet) => ({
-          ...exerciseSet,
-          exercise_id: exerciseRow.id,
-        }));
-      },
-    );
-    const expectedSetCount = normalizedExercises.reduce(
-      (total, exercise) => total + exercise.sets.length,
-      0,
-    );
-
-    if (setPayloads.length !== expectedSetCount) {
-      await supabase
-        .from("workout_training_days")
-        .delete()
-        .eq("id", createdTrainingDay.id);
-
-      setIsDaySaving(false);
-      setErrorMessage("Не удалось связать подходы с упражнениями.");
-      return;
-    }
-
-    const { data: setData, error: setError } = await supabase
-      .from("workout_exercise_sets")
-      .insert(setPayloads)
-      .select();
-
-    if (setError || !setData) {
-      await supabase
-        .from("workout_training_days")
-        .delete()
-        .eq("id", createdTrainingDay.id);
-
-      setIsDaySaving(false);
-      setErrorMessage("Не удалось сохранить подходы тренировки.");
-      return;
-    }
-
-    const setsByExerciseId = ((setData ?? []) as WorkoutExerciseSetRow[]).reduce<
-      Map<string, WorkoutExerciseSet[]>
-    >((accumulator, row) => {
-      const exerciseSet = mapSetRow(row);
-      const currentSets = accumulator.get(exerciseSet.exerciseId) ?? [];
-
-      accumulator.set(exerciseSet.exerciseId, [...currentSets, exerciseSet]);
-
-      return accumulator;
-    }, new Map());
-
-    const createdExercises = exerciseRows.map((exerciseRow) => ({
-      ...mapExerciseRow(exerciseRow),
-      sets: setsByExerciseId.get(exerciseRow.id) ?? [],
-    }));
 
     setErrorMessage(null);
     setIsDaySaving(false);
@@ -856,15 +1160,13 @@ function WorkoutPatterns() {
         ...currentDays,
         {
           ...createdTrainingDay,
-          exercises: createdExercises,
+          exercises: savedExercises,
         },
       ].sort((firstDay, secondDay) =>
         firstDay.trainingDate.localeCompare(secondDay.trainingDate),
       ),
     );
-    setDayTitle("");
-    setDayContent("");
-    setExerciseDrafts([createExerciseDraft()]);
+    resetTrainingDayForm();
   };
 
   const handleDeleteTrainingDay = async (id: string) => {
@@ -887,6 +1189,10 @@ function WorkoutPatterns() {
     setTrainingDays((currentDays) =>
       currentDays.filter((trainingDay) => trainingDay.id !== id),
     );
+
+    if (editingTrainingDayId === id) {
+      resetTrainingDayForm();
+    }
   };
 
   return (
@@ -1023,7 +1329,7 @@ function WorkoutPatterns() {
                   <li key={program.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedProgramId(program.id)}
+                      onClick={() => handleSelectProgram(program.id)}
                       className={[
                         "focus-ring w-full rounded-lg border p-4 text-left transition",
                         selectedProgramId === program.id
@@ -1076,8 +1382,17 @@ function WorkoutPatterns() {
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <h2 className="text-lg font-bold text-[var(--text)]">
-              {isClient ? "Ближайшие дни" : "План на тренировочный день"}
+              {isClient
+                ? "Ближайшие дни"
+                : editingTrainingDay
+                  ? "Редактирование тренировочного дня"
+                  : "План на тренировочный день"}
             </h2>
+            {editingTrainingDay && (
+              <p className="mt-2 text-sm text-[var(--text-muted)]">
+                Сейчас редактируется день: {editingTrainingDay.title}
+              </p>
+            )}
 
             {scheduledDays.length > 0 && (
               <div className="mt-4">
@@ -1102,7 +1417,11 @@ function WorkoutPatterns() {
             )}
 
             {!isClient && (
-            <form onSubmit={handleCreateTrainingDay} className="mt-5 grid gap-4">
+            <form
+              id="workout-day-form"
+              onSubmit={handleSaveTrainingDay}
+              className="mt-5 grid gap-4"
+            >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <label className="block min-w-0">
                   <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
@@ -1360,13 +1679,31 @@ function WorkoutPatterns() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isDaySaving || !selectedProgramId}
-                className="focus-ring min-h-11 w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
-              >
-                {isDaySaving ? "Добавляем..." : "Добавить тренировочный день"}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="submit"
+                  disabled={isDaySaving || !selectedProgramId}
+                  className="focus-ring min-h-11 w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+                >
+                  {isDaySaving
+                    ? editingTrainingDay
+                      ? "Сохраняем..."
+                      : "Добавляем..."
+                    : editingTrainingDay
+                      ? "Сохранить день"
+                      : "Добавить тренировочный день"}
+                </button>
+                {editingTrainingDay && (
+                  <button
+                    type="button"
+                    onClick={resetTrainingDayForm}
+                    disabled={isDaySaving}
+                    className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] px-4 py-2 font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+                  >
+                    Отменить редактирование
+                  </button>
+                )}
+              </div>
             </form>
             )}
           </section>
@@ -1390,7 +1727,12 @@ function WorkoutPatterns() {
                 {trainingDays.map((trainingDay) => (
                   <li
                     key={trainingDay.id}
-                    className="rounded-lg border border-[var(--border)] p-4"
+                    className={[
+                      "rounded-lg border p-4 transition",
+                      editingTrainingDayId === trainingDay.id
+                        ? "border-[var(--accent)] bg-blue-50/60"
+                        : "border-[var(--border)]",
+                    ].join(" ")}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
@@ -1403,13 +1745,24 @@ function WorkoutPatterns() {
                       </div>
 
                       {!isClient && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTrainingDay(trainingDay.id)}
-                          className="focus-ring min-h-10 rounded-lg border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
-                        >
-                          Удалить
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditTrainingDay(trainingDay)}
+                            className="focus-ring min-h-10 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeleteTrainingDay(trainingDay.id)
+                            }
+                            className="focus-ring min-h-10 rounded-lg border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Удалить
+                          </button>
+                        </div>
                       )}
                     </div>
 

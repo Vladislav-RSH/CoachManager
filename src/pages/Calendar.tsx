@@ -7,6 +7,12 @@ import {
   type NewCalendarAssignmentRow,
 } from "../lib/supabase";
 import { useProfile } from "../context/ProfileContext";
+import {
+  getDraftStorageKey,
+  readDraft,
+  removeDraft,
+  writeDraft,
+} from "../lib/draftStorage";
 
 type CalendarClient = {
   id: string;
@@ -20,6 +26,12 @@ type CalendarAssignment = {
   scheduledDate: string;
   note: string;
   createdAt: string;
+};
+
+type CalendarAssignmentDraft = {
+  selectedClientId: string;
+  selectedDate: string;
+  note: string;
 };
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -115,15 +127,44 @@ function Calendar() {
   const { profile } = useProfile();
   const isClient = profile?.role === "client";
   const todayDateKey = useMemo(() => formatDateKey(new Date()), []);
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
-  const [selectedDate, setSelectedDate] = useState(todayDateKey);
+  const assignmentDraftKey = getDraftStorageKey(
+    profile?.id,
+    "calendar-assignment",
+  );
+  const [initialAssignmentDraft] = useState(() =>
+    readDraft<CalendarAssignmentDraft>(assignmentDraftKey, {
+      selectedClientId: "",
+      selectedDate: todayDateKey,
+      note: "",
+    }),
+  );
+  const initialSelectedDate =
+    initialAssignmentDraft.selectedDate || todayDateKey;
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    parseDateKey(initialSelectedDate),
+  );
+  const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
   const [clients, setClients] = useState<CalendarClient[]>([]);
   const [assignments, setAssignments] = useState<CalendarAssignment[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [note, setNote] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState(
+    initialAssignmentDraft.selectedClientId,
+  );
+  const [note, setNote] = useState(initialAssignmentDraft.note);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isClient) {
+      return;
+    }
+
+    writeDraft<CalendarAssignmentDraft>(assignmentDraftKey, {
+      selectedClientId,
+      selectedDate,
+      note,
+    });
+  }, [assignmentDraftKey, isClient, note, selectedClientId, selectedDate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -309,6 +350,7 @@ function Calendar() {
       ...currentAssignments,
       mapAssignmentRow(data as CalendarAssignmentRow),
     ]);
+    removeDraft(assignmentDraftKey);
     setNote("");
   };
 
