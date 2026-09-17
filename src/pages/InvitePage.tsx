@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import LogoMark from "../components/LogoMark";
+import { getClientInviteToken } from "../lib/clientInvitations";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import type { WorkoutExerciseIntensity } from "../lib/supabase";
 
@@ -215,6 +216,14 @@ const getInviteErrorMessage = (message: string) => {
     return "Ссылка не привязана к карточке клиента. Попросите тренера создать ссылку из карточки клиента.";
   }
 
+  if (normalizedMessage.includes("get_client_portal")) {
+    return "На сервере еще не применена миграция клиентского доступа. Попросите администратора применить 014_create_client_portal_access.sql и создать новую ссылку.";
+  }
+
+  if (normalizedMessage.includes("invalid input syntax for type uuid")) {
+    return "Ссылка повреждена или скопирована не полностью. Попросите тренера отправить новую ссылку доступа.";
+  }
+
   return "Не удалось открыть клиентский доступ. Попробуйте еще раз или попросите тренера создать новую ссылку.";
 };
 
@@ -253,11 +262,18 @@ function MetricCard({
 }
 
 function InvitePage() {
-  const { token } = useParams<{ token: string }>();
+  const { token: pathToken } = useParams<{ token: string }>();
+  const location = useLocation();
   const [portalData, setPortalData] = useState<ClientPortalData | null>(null);
   const [activeTab, setActiveTab] = useState<PortalTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const token = useMemo(
+    () =>
+      pathToken ??
+      getClientInviteToken(location.pathname, location.search).trim(),
+    [location.pathname, location.search, pathToken],
+  );
 
   useEffect(() => {
     let isMounted = true;
