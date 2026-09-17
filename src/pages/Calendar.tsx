@@ -6,6 +6,7 @@ import {
   type ClientRow,
   type NewCalendarAssignmentRow,
 } from "../lib/supabase";
+import { useProfile } from "../context/ProfileContext";
 
 type CalendarClient = {
   id: string;
@@ -111,6 +112,8 @@ function ChevronRightIcon() {
 }
 
 function Calendar() {
+  const { profile } = useProfile();
+  const isClient = profile?.role === "client";
   const todayDateKey = useMemo(() => formatDateKey(new Date()), []);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(todayDateKey);
@@ -338,7 +341,7 @@ function Calendar() {
           Расписание
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Календарь
+          {isClient ? "Мой календарь" : "Календарь"}
         </h1>
       </div>
 
@@ -356,7 +359,9 @@ function Calendar() {
                 {monthLabel}
               </h2>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
-                {assignments.length} назначений в этом месяце
+                {isClient
+                  ? `${assignments.length} моих назначений в этом месяце`
+                  : `${assignments.length} назначений в этом месяце`}
               </p>
             </div>
 
@@ -431,69 +436,71 @@ function Calendar() {
         </section>
 
         <aside className="space-y-5">
-          <form
-            onSubmit={handleCreateAssignment}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-[var(--text)]">
-              Назначить клиента
-            </h2>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                День
-              </span>
-              <input
-                type="date"
-                required
-                value={selectedDate}
-                onChange={(event) => handleDateChange(event.target.value)}
-                className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-              />
-            </label>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                Клиент
-              </span>
-              <select
-                value={selectedClientId}
-                onChange={(event) => setSelectedClientId(event.target.value)}
-                disabled={clients.length === 0}
-                className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-              >
-                {clients.length === 0 ? (
-                  <option value="">Нет клиентов</option>
-                ) : (
-                  clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.firstName} {client.secondName}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                Заметка
-              </span>
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Например: силовая, контроль замеров..."
-                className="focus-ring min-h-24 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSaving || clients.length === 0}
-              className="focus-ring mt-5 min-h-11 w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+          {!isClient && (
+            <form
+              onSubmit={handleCreateAssignment}
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
             >
-              {isSaving ? "Назначаем..." : "Назначить на день"}
-            </button>
-          </form>
+              <h2 className="text-lg font-bold text-[var(--text)]">
+                Назначить клиента
+              </h2>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                  День
+                </span>
+                <input
+                  type="date"
+                  required
+                  value={selectedDate}
+                  onChange={(event) => handleDateChange(event.target.value)}
+                  className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                />
+              </label>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                  Клиент
+                </span>
+                <select
+                  value={selectedClientId}
+                  onChange={(event) => setSelectedClientId(event.target.value)}
+                  disabled={clients.length === 0}
+                  className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                >
+                  {clients.length === 0 ? (
+                    <option value="">Нет клиентов</option>
+                  ) : (
+                    clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.firstName} {client.secondName}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                  Заметка
+                </span>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Например: силовая, контроль замеров..."
+                  className="focus-ring min-h-24 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSaving || clients.length === 0}
+                className="focus-ring mt-5 min-h-11 w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? "Назначаем..." : "Назначить на день"}
+              </button>
+            </form>
+          )}
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <div className="mb-4">
@@ -511,7 +518,9 @@ function Calendar() {
               </p>
             ) : selectedDayAssignments.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-4 text-sm text-[var(--text-muted)]">
-                На этот день клиенты пока не назначены.
+                {isClient
+                  ? "На этот день назначений пока нет."
+                  : "На этот день клиенты пока не назначены."}
               </p>
             ) : (
               <ul className="space-y-3">
@@ -537,13 +546,15 @@ function Calendar() {
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAssignment(assignment.id)}
-                          className="focus-ring shrink-0 rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
-                        >
-                          Удалить
-                        </button>
+                        {!isClient && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAssignment(assignment.id)}
+                            className="focus-ring shrink-0 rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Удалить
+                          </button>
+                        )}
                       </div>
                     </li>
                   );

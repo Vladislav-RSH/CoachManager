@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
+import { createClientInviteLink } from "../lib/clientInvitations";
 import {
   isSupabaseConfigured,
   supabase,
   type ClientMeasurementRow,
   type ClientRow,
   type NewClientMeasurementRow,
+  type NewClientInvitationRow,
   type NewClientRow,
 } from "../lib/supabase";
 
@@ -25,6 +27,7 @@ type ClientMeasurement = {
 
 type Client = {
   id: string;
+  clientUserId: string | null;
   firstName: string;
   secondName: string;
   date: string;
@@ -100,6 +103,7 @@ const mapClientRow = (
   measurements: ClientMeasurement[] = [],
 ): Client => ({
   id: row.id,
+  clientUserId: row.client_user_id,
   firstName: row.first_name,
   secondName: row.second_name,
   date: row.birth_date ?? "",
@@ -168,6 +172,25 @@ function PlusIcon() {
   );
 }
 
+function LinkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M10 13.5a4 4 0 0 0 5.7.2l2.1-2.1a4 4 0 0 0-5.7-5.7l-1.2 1.2M14 10.5a4 4 0 0 0-5.7-.2l-2.1 2.1a4 4 0 0 0 5.7 5.7l1.2-1.2"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
 function EditIcon() {
   return (
     <svg
@@ -220,6 +243,10 @@ function Clients() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [isInvitationSaving, setIsInvitationSaving] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteClientName, setInviteClientName] = useState("");
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -319,6 +346,73 @@ function Clients() {
     if (!isSaving) {
       setIsFormOpen(false);
       setEditingClientId(null);
+    }
+  };
+
+  const handleCreateInvitation = async (clientId: string) => {
+    if (!isSupabaseConfigured || !supabase) {
+      setErrorMessage(missingSupabaseMessage);
+      return;
+    }
+
+    if (!user) {
+      setErrorMessage("Войдите в аккаунт, чтобы создавать приглашения.");
+      return;
+    }
+
+    const selectedClient = clients.find((client) => client.id === clientId);
+
+    if (!selectedClient) {
+      setErrorMessage("Выберите клиента, для которого нужно открыть доступ.");
+      return;
+    }
+
+    setIsInvitationSaving(true);
+    setErrorMessage(null);
+    setIsLinkCopied(false);
+
+    const invitationPayload: NewClientInvitationRow = {
+      trainer_id: user.id,
+      client_id: clientId,
+      expires_at: new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString(),
+    };
+    const { data, error } = await supabase
+      .from("client_invitations")
+      .insert(invitationPayload)
+      .select("token")
+      .single();
+
+    setIsInvitationSaving(false);
+
+    if (error || !data) {
+      setErrorMessage(
+        "Не удалось создать ссылку доступа. Проверьте миграции 011_create_client_invitations.sql и 014_create_client_portal_access.sql.",
+      );
+      return;
+    }
+
+    const token = String((data as { token: string }).token);
+
+    setInviteLink(createClientInviteLink(token));
+    setInviteClientName(
+      `${selectedClient.firstName} ${selectedClient.secondName}`,
+    );
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setIsLinkCopied(true);
+    } catch {
+      setErrorMessage(
+        "Не удалось скопировать ссылку автоматически. Выделите ее и скопируйте вручную.",
+      );
     }
   };
 
@@ -516,6 +610,61 @@ function Clients() {
 
   return (
     <section className="space-y-6">
+      {inviteLink && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+          onClick={() => setInviteLink(null)}
+        >
+          <section
+            className="w-full max-w-xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 text-[var(--text)] shadow-2xl sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--teal)]">
+                  Приглашение создано
+                </p>
+                <h2 className="mt-1 text-xl font-bold">
+                  Ссылка для {inviteClientName}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInviteLink(null)}
+                title="Закрыть окно"
+                aria-label="Закрыть окно"
+                className="focus-ring grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
+              Отправьте ссылку клиенту. Она действует 30 дней и открывает
+              только просмотр его расписания, тренировок, питания и замеров без
+              регистрации.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <input
+                readOnly
+                value={inviteLink}
+                onFocus={(event) => event.currentTarget.select()}
+                className="focus-ring min-h-11 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCopyInviteLink()}
+                className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
+              >
+                <LinkIcon />
+                {isLinkCopied ? "Скопировано" : "Скопировать"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {isFormOpen && (
         <div
           className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:py-8"
@@ -553,26 +702,28 @@ function Clients() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold">
-                  Имя
+                  Имя или псевдоним
                 </span>
                 <input
                   type="text"
                   name="firstName"
                   required
                   defaultValue={editingClient?.firstName ?? ""}
+                  placeholder="Например, Клиент"
                   className={inputClass}
                 />
               </label>
 
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold">
-                  Фамилия
+                  Метка клиента
                 </span>
                 <input
                   type="text"
                   name="secondName"
                   required
                   defaultValue={editingClient?.secondName ?? ""}
+                  placeholder="Например, 01 или инициалы"
                   className={inputClass}
                 />
               </label>
@@ -846,14 +997,16 @@ function Clients() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-[var(--accent-strong)] sm:w-auto"
-        >
-          <PlusIcon />
-          Добавить клиента
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className="focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-[var(--accent-strong)] sm:w-auto"
+          >
+            <PlusIcon />
+            Добавить клиента
+          </button>
+        </div>
       </div>
 
       <label className="relative block max-w-xl">
@@ -982,9 +1135,14 @@ function Clients() {
                   </button>
                   <button
                     type="button"
-                    className="focus-ring min-h-10 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    onClick={() => void handleCreateInvitation(client.id)}
+                    disabled={isInvitationSaving}
+                    className="focus-ring min-h-10 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Пригласить клиента
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <LinkIcon />
+                      {isInvitationSaving ? "Создаем..." : "Ссылка доступа"}
+                    </span>
                   </button>
                   <button
                     type="button"

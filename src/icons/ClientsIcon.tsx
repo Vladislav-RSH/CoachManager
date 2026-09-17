@@ -4,9 +4,9 @@ function ClientsIcon() {
 
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" 
     stroke="#fff">
-        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" 
-        stroke-linejoin="round">
+        <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+        <g id="SVGRepo_tracerCarrier" strokeLinecap="round"
+        strokeLinejoin="round">
         </g>
         <g id="SVGRepo_iconCarrier"> 
             <path d="M13 20V18C13 15.2386 10.7614 13 8 13C5.23858 13 3 
@@ -15,8 +15,8 @@ function ClientsIcon() {
             9.65685 10 8 10C6.34315 10 5 8.65685 5 7C5 5.34315 6.34315 4 8 
             4C9.65685 4 11 5.34315 11 7ZM18 9C18 10.1046 17.1046 11 16 
             11C14.8954 11 14 10.1046 14 9C14 7.89543 14.8954 7 16 7C17.1046 
-            7 18 7.89543 18 9Z" stroke="#fff" stroke-width="2" 
-            stroke-linecap="round" stroke-linejoin="round">
+            7 18 7.89543 18 9Z" stroke="#fff" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round">
             </path> 
         </g>
         </svg>

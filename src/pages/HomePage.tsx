@@ -5,6 +5,7 @@ import {
   type CalendarAssignmentRow,
   type ClientRow,
 } from "../lib/supabase";
+import { useProfile } from "../context/ProfileContext";
 
 type HomeClient = {
   id: string;
@@ -63,6 +64,8 @@ const mapAssignmentRow = (row: CalendarAssignmentRow): HomeAssignment => ({
 });
 
 function HomePage() {
+  const { profile } = useProfile();
+  const isClient = profile?.role === "client";
   const todayDateKey = useMemo(() => formatDateKey(new Date()), []);
   const [clients, setClients] = useState<HomeClient[]>([]);
   const [assignments, setAssignments] = useState<HomeAssignment[]>([]);
@@ -138,18 +141,35 @@ function HomePage() {
     (assignment) => assignment.scheduledDate === todayDateKey,
   );
 
-  const stats = [
-    {
-      label: "Активные клиенты",
-      value: isLoading ? "..." : String(clients.length),
-      tone: "text-[var(--accent)]",
-    },
-    {
-      label: "Назначений сегодня",
-      value: isLoading ? "..." : String(todayAssignments.length),
-      tone: "text-[var(--teal)]",
-    },
-  ];
+  const stats = isClient
+    ? [
+        {
+          label: "Профиль клиента",
+          value: isLoading
+            ? "..."
+            : clients.length > 0
+              ? "Подключен"
+              : "Не привязан",
+          tone: "text-[var(--accent)]",
+        },
+        {
+          label: "Назначений сегодня",
+          value: isLoading ? "..." : String(todayAssignments.length),
+          tone: "text-[var(--teal)]",
+        },
+      ]
+    : [
+        {
+          label: "Активные клиенты",
+          value: isLoading ? "..." : String(clients.length),
+          tone: "text-[var(--accent)]",
+        },
+        {
+          label: "Назначений сегодня",
+          value: isLoading ? "..." : String(todayAssignments.length),
+          tone: "text-[var(--teal)]",
+        },
+      ];
 
   const upcomingAssignments = assignments.slice(0, 5);
 
@@ -160,7 +180,7 @@ function HomePage() {
           Сегодня
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Главная
+          {isClient ? "Кабинет клиента" : "Главная"}
         </h1>
       </div>
 
@@ -178,6 +198,14 @@ function HomePage() {
         ))}
       </ul>
 
+      {isClient && !isLoading && clients.length === 0 && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium leading-6 text-amber-900">
+          Аккаунт клиента создан, но карточка клиента еще не привязана к
+          тренеру. Откройте ссылку приглашения от тренера и заполните данные,
+          чтобы появились календарь, программы, питание и аналитика.
+        </section>
+      )}
+
       {errorMessage && (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
           {errorMessage}
@@ -188,7 +216,7 @@ function HomePage() {
         <section className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-[var(--text)]">
-              Ближайшие назначения
+              {isClient ? "Мои ближайшие назначения" : "Ближайшие назначения"}
             </h2>
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[var(--accent)]">
               {isLoading

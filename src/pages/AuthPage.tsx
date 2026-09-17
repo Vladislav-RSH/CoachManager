@@ -1,9 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import LogoMark from "../components/LogoMark";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import {
+  buildLegalAcceptancesMetadata,
+  getLegalDocument,
+  getLegalDocumentPath,
+  getRequiredLegalAcceptances,
+} from "../lib/legal";
 
-type AuthMode = "login" | "register";
+export type AuthMode = "login" | "register";
 
 const inputClass =
   "focus-ring min-h-12 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]";
@@ -30,6 +36,15 @@ const getAuthErrorMessage = (message: string) => {
     return "Подтвердите email по ссылке из письма.";
   }
 
+  if (
+    normalizedMessage.includes("rate limit") ||
+    normalizedMessage.includes("too many") ||
+    normalizedMessage.includes("429") ||
+    normalizedMessage.includes("over email send rate limit")
+  ) {
+    return "Слишком много запросов на отправку письма. Подождите несколько минут и попробуйте еще раз.";
+  }
+
   return "Не удалось выполнить запрос. Попробуйте еще раз.";
 };
 
@@ -41,17 +56,92 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [confirmationRedirectPath, setConfirmationRedirectPath] = useState("");
+  const [confirmationCooldownSeconds, setConfirmationCooldownSeconds] =
+    useState(0);
+  const [acceptedLegalDocuments, setAcceptedLegalDocuments] = useState<
+    Record<string, boolean>
+  >({});
 
   const isRegistering = mode === "register";
+  const registrationRole = "trainer";
+  const legalRequirements = getRequiredLegalAcceptances(registrationRole);
+  const hasAcceptedRequiredLegal = legalRequirements.every(
+    (requirement) => acceptedLegalDocuments[requirement.documentKey],
+  );
+
+  useEffect(() => {
+    if (confirmationCooldownSeconds <= 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setConfirmationCooldownSeconds((currentValue) =>
+        Math.max(0, currentValue - 1),
+      );
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [confirmationCooldownSeconds]);
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setConfirmationEmail("");
+    setConfirmationRedirectPath("");
+    setConfirmationCooldownSeconds(0);
     setPassword("");
     setPasswordConfirmation("");
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setErrorMessage(
+        "Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY.",
+      );
+      return;
+    }
+
+    if (!confirmationEmail) {
+      setErrorMessage("Укажите email и повторите регистрацию.");
+      return;
+    }
+
+    if (confirmationCooldownSeconds > 0) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsResendingConfirmation(true);
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: confirmationEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}${
+          confirmationRedirectPath || "/auth"
+        }`,
+      },
+    });
+
+    setIsResendingConfirmation(false);
+    setConfirmationCooldownSeconds(60);
+
+    if (error) {
+      setErrorMessage(getAuthErrorMessage(error.message));
+      return;
+    }
+
+    setSuccessMessage(
+      "Если аккаунт ожидает подтверждения, письмо отправлено повторно. Проверьте входящие и спам.",
+    );
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -67,7 +157,7 @@ function AuthPage() {
     }
 
     if (isRegistering && !fullName.trim()) {
-      setErrorMessage("Укажите имя, чтобы создать профиль тренера.");
+      setErrorMessage("Укажите имя, чтобы создать профиль.");
       return;
     }
 
@@ -76,16 +166,30 @@ function AuthPage() {
       return;
     }
 
+    if (isRegistering && !hasAcceptedRequiredLegal) {
+      setErrorMessage("Примите обязательные юридические условия.");
+      return;
+    }
+
     setIsLoading(true);
 
     if (isRegistering) {
+      const authRedirectPath = "/auth";
+      const normalizedEmail = email.trim();
+      const legalAcceptances = buildLegalAcceptancesMetadata(
+        registrationRole,
+        legalRequirements,
+        window.navigator.userAgent,
+      );
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
+          emailRedirectTo: `${window.location.origin}${authRedirectPath}`,
           data: {
             full_name: fullName.trim(),
+            role: registrationRole,
+            legal_acceptances: legalAcceptances,
           },
         },
       });
@@ -102,8 +206,11 @@ function AuthPage() {
         return;
       }
 
+      setConfirmationEmail(normalizedEmail);
+      setConfirmationRedirectPath(authRedirectPath);
+      setConfirmationCooldownSeconds(60);
       setSuccessMessage(
-        "Аккаунт создан. Проверьте почту и перейдите по ссылке для подтверждения email.",
+        "Если аккаунт создан и ожидает подтверждения, письмо отправлено. Проверьте входящие и спам. Если email уже подтверждался раньше, попробуйте войти или восстановить пароль.",
       );
       setMode("login");
       setPassword("");
@@ -136,25 +243,12 @@ function AuthPage() {
               Tempo
             </p>
             <h1 className="mt-4 max-w-md text-4xl font-bold leading-tight">
-              Ваш кабинет тренера в одном месте.
+              Ваш рабочий кабинет Tempo в одном месте.
             </h1>
             <p className="mt-5 max-w-md text-base leading-7 text-slate-300">
               Клиенты, календарь, тренировочные программы, питание и аналитика
               в рабочем пространстве, которое всегда под рукой.
             </p>
-          </div>
-
-          <div className="relative z-10 grid gap-3 text-sm text-slate-300">
-            {["Безопасный вход через Supabase Auth", "Профиль тренера с персональными настройками", "Доступ к рабочим данным только после входа"].map(
-              (item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/10 text-teal-200">
-                    ✓
-                  </span>
-                  <span>{item}</span>
-                </div>
-              ),
-            )}
           </div>
 
           <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full border-[32px] border-white/5" />
@@ -167,7 +261,7 @@ function AuthPage() {
             <div>
               <p className="font-semibold text-[var(--text)]">Tempo</p>
               <p className="text-sm text-[var(--text-muted)]">
-                Кабинет тренера
+                Кабинет Tempo
               </p>
             </div>
           </div>
@@ -181,7 +275,7 @@ function AuthPage() {
             </h2>
             <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
               {isRegistering
-                ? "Заполните данные, чтобы начать работу с клиентами."
+                ? "Заполните данные, чтобы вести клиентов и программы."
                 : "Введите данные, чтобы продолжить работу с Tempo."}
             </p>
           </div>
@@ -221,7 +315,23 @@ function AuthPage() {
 
           {successMessage && (
             <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium leading-5 text-emerald-800">
-              {successMessage}
+              <p>{successMessage}</p>
+              {confirmationEmail && (
+                <button
+                  type="button"
+                  onClick={() => void handleResendConfirmation()}
+                  disabled={
+                    isResendingConfirmation || confirmationCooldownSeconds > 0
+                  }
+                  className="focus-ring mt-3 min-h-9 rounded-lg border border-emerald-300 px-3 py-1.5 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isResendingConfirmation
+                    ? "Отправляем..."
+                    : confirmationCooldownSeconds > 0
+                      ? `Повторно через ${confirmationCooldownSeconds} сек.`
+                      : "Отправить письмо еще раз"}
+                </button>
+              )}
             </div>
           )}
 
@@ -294,9 +404,65 @@ function AuthPage() {
               </label>
             )}
 
+            {isRegistering && (
+              <fieldset className="rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+                <legend className="px-1 text-sm font-semibold text-[var(--text)]">
+                  Юридические условия
+                </legend>
+                <div className="mt-3 grid gap-3">
+                  {legalRequirements.map((requirement) => {
+                    const document = getLegalDocument(requirement.documentKey);
+
+                    return (
+                      <label
+                        key={requirement.documentKey}
+                        className="flex cursor-pointer gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            acceptedLegalDocuments[requirement.documentKey] ??
+                            false
+                          }
+                          onChange={(event) =>
+                            setAcceptedLegalDocuments((currentValue) => ({
+                              ...currentValue,
+                              [requirement.documentKey]:
+                                event.target.checked,
+                            }))
+                          }
+                          className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold leading-5 text-[var(--text)]">
+                            {requirement.label}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">
+                            {requirement.description}{" "}
+                            <Link
+                              to={getLegalDocumentPath(
+                                requirement.documentKey,
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-[var(--accent)] hover:text-[var(--accent-strong)]"
+                            >
+                              {document?.title ?? "Документ"}
+                            </Link>
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={
+                isLoading || (isRegistering && !hasAcceptedRequiredLegal)
+              }
               className="focus-ring mt-2 min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading

@@ -8,6 +8,7 @@ import HomeIcon from "../icons/HomeIcon";
 import { useAuth } from "../context/AuthContext";
 import { useProfile } from "../context/ProfileContext";
 import { supabase } from "../lib/supabase";
+import { userRoleLabels } from "../lib/userRoles";
 
 type LeftBoardProps = {
   className?: string;
@@ -23,7 +24,7 @@ const navItemClass = ({ isActive }: { isActive: boolean }) =>
       : "text-slate-300 hover:bg-white/10 hover:text-white",
   ].join(" ");
 
-const menuItems = [
+const trainerMenuItems = [
   { to: "/", label: "Главная", Icon: HomeIcon },
   { to: "/clients", label: "Клиенты", Icon: ClientsIcon },
   { to: "/analytics", label: "Аналитика", Icon: AnalyticsIcon },
@@ -34,6 +35,18 @@ const menuItems = [
     Icon: WorkoutPatternsIcon,
   },
   { to: "/nutritionprograms", label: "Планы питания", Icon: NutritionProgramIcon },
+];
+
+const clientMenuItems = [
+  { to: "/", label: "Главная", Icon: HomeIcon },
+  { to: "/calendar", label: "Мой календарь", Icon: CalendarIcon },
+  {
+    to: "/workoutpatterns",
+    label: "Тренировки",
+    Icon: WorkoutPatternsIcon,
+  },
+  { to: "/nutritionprograms", label: "Питание", Icon: NutritionProgramIcon },
+  { to: "/analytics", label: "Моя аналитика", Icon: AnalyticsIcon },
 ];
 
 function CloseIcon() {
@@ -88,11 +101,13 @@ const getInitials = (fullName: string) => {
 function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
   const { user } = useAuth();
   const { profile } = useProfile();
+  const role = profile?.role ?? "trainer";
+  const menuItems = role === "client" ? clientMenuItems : trainerMenuItems;
   const displayName =
     profile?.fullName.trim() ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
-    "Тренер";
+    userRoleLabels[role];
 
   const handleSignOut = async () => {
     if (supabase) {
@@ -133,7 +148,7 @@ function LeftBoard({ className = "", onClose, onNavigate }: LeftBoardProps) {
         <div className="min-w-0">
           <span className="block truncate font-semibold">{displayName}</span>
           <span className="block truncate text-sm text-slate-300">
-            {user?.email || "Аккаунт"}
+            {userRoleLabels[role]}
           </span>
         </div>
       </NavLink>

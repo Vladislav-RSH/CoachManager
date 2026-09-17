@@ -14,6 +14,7 @@ import {
   type WorkoutTrainingExerciseRow,
   type WorkoutTrainingDayRow,
 } from "../lib/supabase";
+import { useProfile } from "../context/ProfileContext";
 
 type WorkoutClient = {
   id: string;
@@ -230,6 +231,8 @@ function PlusIcon() {
 }
 
 function WorkoutPatterns() {
+  const { profile } = useProfile();
+  const isClient = profile?.role === "client";
   const todayDateKey = useMemo(() => formatDateKey(new Date()), []);
   const [clients, setClients] = useState<WorkoutClient[]>([]);
   const [programs, setPrograms] = useState<WorkoutProgram[]>([]);
@@ -893,7 +896,7 @@ function WorkoutPatterns() {
           Тренировки
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Программы тренировок
+          {isClient ? "Мои тренировки" : "Программы тренировок"}
         </h1>
       </div>
 
@@ -904,89 +907,104 @@ function WorkoutPatterns() {
       )}
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <label className="block max-w-xl">
-          <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            Клиент
-          </span>
-          <select
-            value={selectedClientId}
-            onChange={(event) => setSelectedClientId(event.target.value)}
-            disabled={clients.length === 0}
-            className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-          >
-            {clients.length === 0 ? (
-              <option value="">Нет клиентов</option>
-            ) : (
-              clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.firstName} {client.secondName}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
+        {isClient ? (
+          <div className="max-w-xl">
+            <p className="text-sm font-semibold text-[var(--text-muted)]">
+              Профиль клиента
+            </p>
+            <p className="mt-1 font-bold text-[var(--text)]">
+              {selectedClient
+                ? `${selectedClient.firstName} ${selectedClient.secondName}`
+                : "Аккаунт пока не привязан к карточке клиента"}
+            </p>
+          </div>
+        ) : (
+          <label className="block max-w-xl">
+            <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              Клиент
+            </span>
+            <select
+              value={selectedClientId}
+              onChange={(event) => setSelectedClientId(event.target.value)}
+              disabled={clients.length === 0}
+              className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            >
+              {clients.length === 0 ? (
+                <option value="">Нет клиентов</option>
+              ) : (
+                clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.firstName} {client.secondName}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        )}
 
         {isClientsLoading && (
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Загружаем клиентов...
+            {isClient ? "Загружаем профиль..." : "Загружаем клиентов..."}
           </p>
         )}
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="min-w-0 space-y-5">
-          <form
-            onSubmit={handleCreateProgram}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-[var(--text)]">
-              Новая программа
-            </h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
-              {selectedClient
-                ? `Для клиента ${selectedClient.firstName} ${selectedClient.secondName}`
-                : "Выберите клиента, чтобы создать программу."}
-            </p>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                Название
-              </span>
-              <input
-                type="text"
-                required
-                value={programTitle}
-                onChange={(event) => setProgramTitle(event.target.value)}
-                placeholder="Например: Силовой блок на 4 недели"
-                className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-              />
-            </label>
-
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                Описание
-              </span>
-              <textarea
-                value={programDescription}
-                onChange={(event) => setProgramDescription(event.target.value)}
-                placeholder="Цель программы, ограничения, общий фокус..."
-                className="focus-ring min-h-24 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={isProgramSaving || !selectedClientId}
-              className="focus-ring mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+          {!isClient && (
+            <form
+              onSubmit={handleCreateProgram}
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
             >
-              <PlusIcon />
-              {isProgramSaving ? "Создаем..." : "Создать программу"}
-            </button>
-          </form>
+              <h2 className="text-lg font-bold text-[var(--text)]">
+                Новая программа
+              </h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                {selectedClient
+                  ? `Для клиента ${selectedClient.firstName} ${selectedClient.secondName}`
+                  : "Выберите клиента, чтобы создать программу."}
+              </p>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                  Название
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={programTitle}
+                  onChange={(event) => setProgramTitle(event.target.value)}
+                  placeholder="Например: Силовой блок на 4 недели"
+                  className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                />
+              </label>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                  Описание
+                </span>
+                <textarea
+                  value={programDescription}
+                  onChange={(event) => setProgramDescription(event.target.value)}
+                  placeholder="Цель программы, ограничения, общий фокус..."
+                  className="focus-ring min-h-24 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isProgramSaving || !selectedClientId}
+                className="focus-ring mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <PlusIcon />
+                {isProgramSaving ? "Создаем..." : "Создать программу"}
+              </button>
+            </form>
+          )}
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <h2 className="text-lg font-bold text-[var(--text)]">
-              Программы клиента
+              {isClient ? "Мои программы" : "Программы клиента"}
             </h2>
 
             {isProgramDataLoading ? (
@@ -995,7 +1013,9 @@ function WorkoutPatterns() {
               </p>
             ) : programs.length === 0 ? (
               <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-4 text-sm text-[var(--text-muted)]">
-                У выбранного клиента пока нет программ тренировок.
+                {isClient
+                  ? "Тренер пока не добавил программы тренировок."
+                  : "У выбранного клиента пока нет программ тренировок."}
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
@@ -1042,7 +1062,7 @@ function WorkoutPatterns() {
                 )}
               </div>
 
-              {selectedProgram && (
+              {selectedProgram && !isClient && (
                 <button
                   type="button"
                   onClick={() => handleDeleteProgram(selectedProgram.id)}
@@ -1056,13 +1076,15 @@ function WorkoutPatterns() {
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <h2 className="text-lg font-bold text-[var(--text)]">
-              План на тренировочный день
+              {isClient ? "Ближайшие дни" : "План на тренировочный день"}
             </h2>
 
             {scheduledDays.length > 0 && (
               <div className="mt-4">
                 <p className="mb-2 text-sm font-semibold text-[var(--text)]">
-                  Ближайшие дни клиента из календаря
+                  {isClient
+                    ? "Ближайшие дни из календаря"
+                    : "Ближайшие дни клиента из календаря"}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {scheduledDays.map((scheduledDay) => (
@@ -1079,6 +1101,7 @@ function WorkoutPatterns() {
               </div>
             )}
 
+            {!isClient && (
             <form onSubmit={handleCreateTrainingDay} className="mt-5 grid gap-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <label className="block min-w-0">
@@ -1345,6 +1368,7 @@ function WorkoutPatterns() {
                 {isDaySaving ? "Добавляем..." : "Добавить тренировочный день"}
               </button>
             </form>
+            )}
           </section>
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
@@ -1378,13 +1402,15 @@ function WorkoutPatterns() {
                         </h3>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTrainingDay(trainingDay.id)}
-                        className="focus-ring min-h-10 rounded-lg border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
-                      >
-                        Удалить
-                      </button>
+                      {!isClient && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTrainingDay(trainingDay.id)}
+                          className="focus-ring min-h-10 rounded-lg border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                        >
+                          Удалить
+                        </button>
+                      )}
                     </div>
 
                     {trainingDay.content && (

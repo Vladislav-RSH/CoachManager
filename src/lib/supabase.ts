@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import type { UserRole } from "./userRoles";
 
 export type ProfileRow = {
   id: string;
   full_name: string;
-  role: string;
+  role: UserRole | string;
   phone: string | null;
   bio: string | null;
   avatar_url: string | null;
@@ -16,6 +17,7 @@ export type NewProfileRow = Omit<ProfileRow, "created_at" | "updated_at">;
 export type ClientRow = {
   id: string;
   trainer_id: string | null;
+  client_user_id: string | null;
   first_name: string;
   second_name: string;
   birth_date: string | null;
@@ -28,9 +30,30 @@ export type ClientRow = {
 
 export type NewClientRow = Omit<
   ClientRow,
-  "id" | "created_at" | "trainer_id"
+  "id" | "created_at" | "trainer_id" | "client_user_id"
 > & {
   trainer_id?: string;
+  client_user_id?: string | null;
+};
+
+export type ClientInvitationRow = {
+  id: string;
+  trainer_id: string;
+  client_id: string | null;
+  token: string;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export type NewClientInvitationRow = Omit<
+  ClientInvitationRow,
+  "id" | "token" | "accepted_by" | "accepted_at" | "created_at"
+> & {
+  token?: string;
+  accepted_by?: string | null;
+  accepted_at?: string | null;
 };
 
 export type ClientMeasurementRow = {

@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useProfile } from "../context/ProfileContext";
 import { supabase } from "../lib/supabase";
+import { legalOperator } from "../lib/legal";
+import { userRoleLabels } from "../lib/userRoles";
 
 const inputClass =
   "focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2.5 text-[var(--text)] outline-none transition focus:border-[var(--accent)]";
@@ -56,9 +58,10 @@ function Profile() {
 
   const fallbackName = getUserMetadataString(
     user?.user_metadata?.full_name,
-    user?.email?.split("@")[0] || "Тренер",
+    user?.email?.split("@")[0] || "Пользователь",
   );
   const displayName = profile?.fullName || fullName || fallbackName;
+  const roleLabel = profile ? userRoleLabels[profile.role] : "Аккаунт";
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -157,7 +160,7 @@ function Profile() {
           Настройки
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Профиль тренера
+          {profile?.role === "client" ? "Профиль клиента" : "Профиль тренера"}
         </h1>
       </div>
 
@@ -178,16 +181,22 @@ function Profile() {
                 {displayName}
               </h2>
               <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                Аккаунт активен
+                {roleLabel}
               </span>
             </div>
           </div>
 
           <dl className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-lg bg-[var(--surface-soft)] p-4">
-              <dt className="text-sm text-[var(--text-muted)]">Клиенты</dt>
+              <dt className="text-sm text-[var(--text-muted)]">
+                {profile?.role === "client" ? "Тип аккаунта" : "Клиенты"}
+              </dt>
               <dd className="mt-1 text-lg font-bold text-[var(--text)]">
-                {clientCount === null ? "..." : clientCount}
+                {profile?.role === "client"
+                  ? roleLabel
+                  : clientCount === null
+                    ? "..."
+                    : clientCount}
               </dd>
             </div>
             <div className="rounded-lg bg-[var(--surface-soft)] p-4">
@@ -323,6 +332,35 @@ function Profile() {
           </button>
         </form>
       </div>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
+        <h2 className="text-lg font-bold text-[var(--text)]">
+          Персональные данные
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+          Вы можете запросить копию, исправление, ограничение обработки или
+          удаление своих данных. Для безопасности запрос обрабатывается вручную
+          после проверки аккаунта.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a
+            href={`mailto:${legalOperator.privacyEmail}?subject=${encodeURIComponent(
+              "Запрос по персональным данным Tempo",
+            )}`}
+            className="focus-ring inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Запросить действие с данными
+          </a>
+          <a
+            href="/legal/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="focus-ring inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-strong)]"
+          >
+            Политика обработки данных
+          </a>
+        </div>
+      </section>
     </section>
   );
 }

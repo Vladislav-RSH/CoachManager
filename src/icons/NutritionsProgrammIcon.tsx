@@ -4,8 +4,8 @@ function NutritionProgramIcon() {
 
         <svg className="w-5 h-5" version="1.1" id="Uploaded to svgrepo.com" xmlns="http://www.w3.org/2000/svg" 
         xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" xmlSpace="preserve" fill="#181b21">
-            <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-            <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
             <g id="SVGRepo_iconCarrier"> 
                 <path fill="currentColor" d="M20.715,16.3c0.345-0.029,0.788,0,1.181,0.03c0.307,0.022,0.604,0.043,0.882,0.043 
                     c0.542,0,1.332-0.069,1.93-0.667l7-7c0.391-0.391,0.391-1.023,0-1.414l-7-7c-0.391-0.391-1.023-0.391-1.414,0l-7,7 

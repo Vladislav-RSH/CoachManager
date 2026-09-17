@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ReactElement } from "react";
+import { useProfile } from "../context/ProfileContext";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import LogoMark from "./LogoMark";
 
@@ -94,6 +95,9 @@ const themeOptions: ThemeOption[] = [
 
 function Header({ onMenuOpen }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { profile } = useProfile();
+  const accountLabel =
+    profile?.role === "client" ? "Кабинет клиента" : "Кабинет тренера";
   const currentDateLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("ru-RU", {
@@ -128,12 +132,9 @@ function Header({ onMenuOpen }: HeaderProps) {
                 Tempo
               </p>
               <span className="hidden rounded-full bg-[var(--surface-tint)] px-2.5 py-1 text-xs font-bold text-[var(--teal)] sm:inline-flex">
-                Кабинет тренера
+                {accountLabel}
               </span>
             </div>
-            <p className="mt-0.5 hidden text-sm text-[var(--text-muted)] sm:block">
-              Клиенты, расписание и прогресс в одном рабочем пространстве
-            </p>
           </div>
         </div>
 

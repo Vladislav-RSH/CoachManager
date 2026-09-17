@@ -3,9 +3,9 @@ function HomeIcon() {
     return (
 
         <svg className="w-5 h-5" viewBox="0 -0.5 25 25" fill="#fff" xmlns="http://www.w3.org/2000/svg">
-            <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-            <g id="SVGRepo_tracerCarrier" stroke-linecap="round" 
-            stroke-linejoin="round"></g>
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round"
+            strokeLinejoin="round"></g>
             <g id="SVGRepo_iconCarrier"> 
                 <path d="M6.25 10.5C6.25 10.0858 5.91421 9.75 5.5 9.75C5.08579 9.75 
                     4.75 10.0858 4.75 10.5H6.25ZM11.5 19.75C11.9142 19.75 12.25 

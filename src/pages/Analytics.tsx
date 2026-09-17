@@ -10,6 +10,7 @@ import {
   type WorkoutTrainingDayRow,
   type WorkoutTrainingExerciseRow,
 } from "../lib/supabase";
+import { useProfile } from "../context/ProfileContext";
 
 type BodyMetricKey =
   | "weightKg"
@@ -546,6 +547,8 @@ function TrendChart({
 }
 
 function Analytics() {
+  const { profile } = useProfile();
+  const isClient = profile?.role === "client";
   const [clients, setClients] = useState<AnalyticsClient[]>([]);
   const [measurements, setMeasurements] = useState<AnalyticsMeasurement[]>([]);
   const [strengthSets, setStrengthSets] = useState<AnalyticsStrengthSet[]>([]);
@@ -918,7 +921,7 @@ function Analytics() {
           Динамика
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Аналитика клиентов
+          {isClient ? "Моя аналитика" : "Аналитика клиентов"}
         </h1>
       </div>
 
@@ -936,12 +939,22 @@ function Analytics() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <article className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <p className="text-sm text-[var(--text-muted)]">Клиенты</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            {isClient ? "Профиль" : "Клиенты"}
+          </p>
           <p className="mt-2 text-3xl font-bold text-[var(--text)]">
-            {isLoading ? "..." : clients.length}
+            {isLoading
+              ? "..."
+              : isClient
+                ? selectedClient
+                  ? "Подключен"
+                  : "Не привязан"
+                : clients.length}
           </p>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
-            {clientsWithMeasurements} с замерами
+            {isClient
+              ? `${selectedClientMeasurements.length} замеров`
+              : `${clientsWithMeasurements} с замерами`}
           </p>
         </article>
         <article className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
@@ -957,33 +970,47 @@ function Analytics() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <label className="block min-w-0 sm:max-w-md sm:flex-1">
-            <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              Клиент
-            </span>
-            <select
-              value={selectedClientId}
-              onChange={(event) => setSelectedClientId(event.target.value)}
-              disabled={clients.length === 0}
-              className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-            >
-              {clients.length === 0 ? (
-                <option value="">Нет клиентов</option>
-              ) : (
-                clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
+          {isClient ? (
+            <div className="min-w-0 sm:max-w-md sm:flex-1">
+              <p className="text-sm font-semibold text-[var(--text-muted)]">
+                Профиль клиента
+              </p>
+              <p className="mt-1 font-bold text-[var(--text)]">
+                {selectedClient?.name ??
+                  "Аккаунт пока не привязан к карточке клиента"}
+              </p>
+            </div>
+          ) : (
+            <label className="block min-w-0 sm:max-w-md sm:flex-1">
+              <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+                Клиент
+              </span>
+              <select
+                value={selectedClientId}
+                onChange={(event) => setSelectedClientId(event.target.value)}
+                disabled={clients.length === 0}
+                className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+              >
+                {clients.length === 0 ? (
+                  <option value="">Нет клиентов</option>
+                ) : (
+                  clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+          )}
 
           <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
             <ChartIcon />
             {selectedClient
               ? `${selectedClient.name}: ${selectedClientMeasurements.length} замеров, ${trainingDaysCount} тренировочных дней`
-              : "Выберите клиента"}
+              : isClient
+                ? "Нет привязанной карточки клиента"
+                : "Выберите клиента"}
           </div>
         </div>
       </section>
@@ -994,7 +1021,9 @@ function Analytics() {
             Профиль клиента
           </h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Базовые показатели из карточки клиента
+            {isClient
+              ? "Базовые показатели из вашей карточки"
+              : "Базовые показатели из карточки клиента"}
           </p>
         </div>
 
@@ -1027,7 +1056,9 @@ function Analytics() {
           </div>
         ) : (
           <p className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-soft)] p-5 text-sm text-[var(--text-muted)]">
-            Выберите клиента, чтобы увидеть профиль.
+            {isClient
+              ? "Карточка клиента пока не привязана к вашему аккаунту."
+              : "Выберите клиента, чтобы увидеть профиль."}
           </p>
         )}
       </section>
@@ -1440,91 +1471,93 @@ function Analytics() {
         )}
       </section>
 
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-[var(--text)]">
-            Сводка по клиентам
-          </h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Последние замеры тела по всем клиентам
-          </p>
-        </div>
-
-        {clients.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-soft)] p-5 text-sm text-[var(--text-muted)]">
-            Клиенты появятся после добавления первой карточки.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {clients.map((client) => {
-              const latest = latestMeasurements.get(client.id);
-
-              return (
-                <button
-                  key={client.id}
-                  type="button"
-                  onClick={() => setSelectedClientId(client.id)}
-                  className={[
-                    "focus-ring rounded-lg border p-4 text-left transition",
-                    selectedClientId === client.id
-                      ? "border-[var(--accent)] bg-blue-50"
-                      : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]",
-                  ].join(" ")}
-                >
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="font-bold text-[var(--text)]">
-                      {client.name}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {latest ? formatDate(latest.measuredAt) : "Нет замеров"}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                      <span className="block text-xs text-[var(--text-muted)]">
-                        Вес
-                      </span>
-                      <span className="mt-1 block font-semibold text-[var(--text)]">
-                        {formatNumber(latest?.weightKg ?? client.currentWeight)}{" "}
-                        кг
-                      </span>
-                    </span>
-                    <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                      <span className="block text-xs text-[var(--text-muted)]">
-                        Талия
-                      </span>
-                      <span className="mt-1 block font-semibold text-[var(--text)]">
-                        {formatNumber(latest?.waistCm ?? null)} см
-                      </span>
-                    </span>
-                    <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                      <span className="block text-xs text-[var(--text-muted)]">
-                        Жир
-                      </span>
-                      <span className="mt-1 block font-semibold text-[var(--text)]">
-                        {formatNumber(latest?.bodyFatPercent ?? null)} %
-                      </span>
-                    </span>
-                    <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                      <span className="block text-xs text-[var(--text-muted)]">
-                        Жировая масса
-                      </span>
-                      <span className="mt-1 block font-semibold text-[var(--text)]">
-                        {formatNumber(
-                          latest
-                            ? getBodyMetricValue(latest, "fatMassKg")
-                            : null,
-                        )}{" "}
-                        кг
-                      </span>
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+      {!isClient && (
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-[var(--text)]">
+              Сводка по клиентам
+            </h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              Последние замеры тела по всем клиентам
+            </p>
           </div>
-        )}
-      </section>
+
+          {clients.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-soft)] p-5 text-sm text-[var(--text-muted)]">
+              Клиенты появятся после добавления первой карточки.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {clients.map((client) => {
+                const latest = latestMeasurements.get(client.id);
+
+                return (
+                  <button
+                    key={client.id}
+                    type="button"
+                    onClick={() => setSelectedClientId(client.id)}
+                    className={[
+                      "focus-ring rounded-lg border p-4 text-left transition",
+                      selectedClientId === client.id
+                        ? "border-[var(--accent)] bg-blue-50"
+                        : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]",
+                    ].join(" ")}
+                  >
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-bold text-[var(--text)]">
+                        {client.name}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {latest ? formatDate(latest.measuredAt) : "Нет замеров"}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
+                        <span className="block text-xs text-[var(--text-muted)]">
+                          Вес
+                        </span>
+                        <span className="mt-1 block font-semibold text-[var(--text)]">
+                          {formatNumber(latest?.weightKg ?? client.currentWeight)}{" "}
+                          кг
+                        </span>
+                      </span>
+                      <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
+                        <span className="block text-xs text-[var(--text-muted)]">
+                          Талия
+                        </span>
+                        <span className="mt-1 block font-semibold text-[var(--text)]">
+                          {formatNumber(latest?.waistCm ?? null)} см
+                        </span>
+                      </span>
+                      <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
+                        <span className="block text-xs text-[var(--text-muted)]">
+                          Жир
+                        </span>
+                        <span className="mt-1 block font-semibold text-[var(--text)]">
+                          {formatNumber(latest?.bodyFatPercent ?? null)} %
+                        </span>
+                      </span>
+                      <span className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
+                        <span className="block text-xs text-[var(--text-muted)]">
+                          Жировая масса
+                        </span>
+                        <span className="mt-1 block font-semibold text-[var(--text)]">
+                          {formatNumber(
+                            latest
+                              ? getBodyMetricValue(latest, "fatMassKg")
+                              : null,
+                          )}{" "}
+                          кг
+                        </span>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </section>
   );
 }

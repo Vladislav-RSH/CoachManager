@@ -15,11 +15,16 @@ import {
   type NewProfileRow,
   type ProfileRow,
 } from "../lib/supabase";
+import {
+  defaultUserRole,
+  normalizeUserRole,
+  type UserRole,
+} from "../lib/userRoles";
 
 export type CoachProfile = {
   id: string;
   fullName: string;
-  role: string;
+  role: UserRole;
   phone: string;
   bio: string;
   avatarUrl: string;
@@ -48,7 +53,7 @@ type ProfileProviderProps = {
 const mapProfileRow = (row: ProfileRow): CoachProfile => ({
   id: row.id,
   fullName: row.full_name,
-  role: row.role,
+  role: normalizeUserRole(row.role),
   phone: row.phone ?? "",
   bio: row.bio ?? "",
   avatarUrl: row.avatar_url ?? "",
@@ -63,8 +68,7 @@ const createFallbackProfile = (
   const now = new Date().toISOString();
   const metadataName =
     typeof metadata.full_name === "string" ? metadata.full_name : "";
-  const metadataRole =
-    typeof metadata.role === "string" ? metadata.role : "Тренер";
+  const metadataRole = normalizeUserRole(metadata.role);
 
   return {
     id: userId,
@@ -156,7 +160,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       const payload: NewProfileRow = {
         id: user.id,
         full_name: values.fullName.trim(),
-        role: profile?.role || "Тренер",
+        role: profile?.role || defaultUserRole,
         phone: values.phone.trim() || null,
         bio: profile?.bio || null,
         avatar_url: profile?.avatarUrl || null,
@@ -183,6 +187,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       await supabaseClient.auth.updateUser({
         data: {
           full_name: values.fullName.trim(),
+          role: payload.role,
         },
       });
 

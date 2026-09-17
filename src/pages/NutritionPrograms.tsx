@@ -12,6 +12,7 @@ import {
   type NutritionProgramRow,
   type NutritionProgramStatus,
 } from "../lib/supabase";
+import { useProfile } from "../context/ProfileContext";
 
 type NutritionClient = {
   id: string;
@@ -250,6 +251,8 @@ function TrashIcon() {
 }
 
 function NutritionPrograms() {
+  const { profile } = useProfile();
+  const isClient = profile?.role === "client";
   const [clients, setClients] = useState<NutritionClient[]>([]);
   const [programs, setPrograms] = useState<NutritionProgram[]>([]);
   const [meals, setMeals] = useState<NutritionMeal[]>([]);
@@ -823,7 +826,7 @@ function NutritionPrograms() {
           Питание
         </p>
         <h1 className="mt-2 text-2xl font-bold text-[var(--text)] sm:text-3xl">
-          Планы питания
+          {isClient ? "Мое питание" : "Планы питания"}
         </h1>
       </div>
 
@@ -835,13 +838,21 @@ function NutritionPrograms() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <p className="text-sm text-[var(--text-muted)]">Клиенты</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            {isClient ? "Профиль" : "Клиенты"}
+          </p>
           <p className="mt-2 text-2xl font-bold text-[var(--text)]">
-            {clients.length}
+            {isClient
+              ? selectedClient
+                ? "Подключен"
+                : "Не привязан"
+              : clients.length}
           </p>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <p className="text-sm text-[var(--text-muted)]">Планы выбранного клиента</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            {isClient ? "Мои планы" : "Планы выбранного клиента"}
+          </p>
           <p className="mt-2 text-2xl font-bold text-[var(--text)]">
             {programs.length}
           </p>
@@ -855,40 +866,54 @@ function NutritionPrograms() {
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <label className="block max-w-xl">
-          <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            Клиент
-          </span>
-          <select
-            value={selectedClientId}
-            onChange={(event) => setSelectedClientId(event.target.value)}
-            disabled={clients.length === 0}
-            className={inputClass}
-          >
-            {clients.length === 0 ? (
-              <option value="">Нет клиентов</option>
-            ) : (
-              clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.firstName} {client.secondName}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
+        {isClient ? (
+          <div className="max-w-xl">
+            <p className="text-sm font-semibold text-[var(--text-muted)]">
+              Профиль клиента
+            </p>
+            <p className="mt-1 font-bold text-[var(--text)]">
+              {selectedClient
+                ? `${selectedClient.firstName} ${selectedClient.secondName}`
+                : "Аккаунт пока не привязан к карточке клиента"}
+            </p>
+          </div>
+        ) : (
+          <label className="block max-w-xl">
+            <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              Клиент
+            </span>
+            <select
+              value={selectedClientId}
+              onChange={(event) => setSelectedClientId(event.target.value)}
+              disabled={clients.length === 0}
+              className={inputClass}
+            >
+              {clients.length === 0 ? (
+                <option value="">Нет клиентов</option>
+              ) : (
+                clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.firstName} {client.secondName}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        )}
         {isClientsLoading && (
           <p className="mt-3 text-sm text-[var(--text-muted)]">
-            Загружаем клиентов...
+            {isClient ? "Загружаем профиль..." : "Загружаем клиентов..."}
           </p>
         )}
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="min-w-0 space-y-5">
-          <form
-            onSubmit={handleCreateProgram}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
-          >
+          {!isClient && (
+            <form
+              onSubmit={handleCreateProgram}
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
+            >
             <h2 className="text-lg font-bold text-[var(--text)]">
               Новый план
             </h2>
@@ -968,11 +993,12 @@ function NutritionPrograms() {
               <PlusIcon />
               {isProgramSaving ? "Создаем..." : "Создать план"}
             </button>
-          </form>
+            </form>
+          )}
 
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <h2 className="text-lg font-bold text-[var(--text)]">
-              Планы клиента
+              {isClient ? "Мои планы" : "Планы клиента"}
             </h2>
             {isProgramsLoading ? (
               <p className="mt-4 text-sm text-[var(--text-muted)]">
@@ -980,7 +1006,9 @@ function NutritionPrograms() {
               </p>
             ) : programs.length === 0 ? (
               <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-4 text-sm text-[var(--text-muted)]">
-                У выбранного клиента пока нет планов питания.
+                {isClient
+                  ? "Тренер пока не добавил планы питания."
+                  : "У выбранного клиента пока нет планов питания."}
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
@@ -1052,32 +1080,34 @@ function NutritionPrograms() {
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={selectedProgram.status}
-                      onChange={(event) =>
-                        handleUpdateProgramStatus(
-                          event.target.value as NutritionProgramStatus,
-                        )
-                      }
-                      className={`${compactInputClass} min-w-36`}
-                      aria-label="Статус плана питания"
-                    >
-                      {Object.entries(statusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProgram(selectedProgram.id)}
-                      className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
-                    >
-                      <TrashIcon />
-                      Удалить
-                    </button>
-                  </div>
+                  {!isClient && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={selectedProgram.status}
+                        onChange={(event) =>
+                          handleUpdateProgramStatus(
+                            event.target.value as NutritionProgramStatus,
+                          )
+                        }
+                        className={`${compactInputClass} min-w-36`}
+                        aria-label="Статус плана питания"
+                      >
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProgram(selectedProgram.id)}
+                        className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                      >
+                        <TrashIcon />
+                        Удалить
+                      </button>
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -1112,10 +1142,11 @@ function NutritionPrograms() {
                 )}
               </section>
 
-              <form
-                onSubmit={handleCreateMeal}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
-              >
+              {!isClient && (
+                <form
+                  onSubmit={handleCreateMeal}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
+                >
                 <div className="flex flex-col gap-1">
                   <h2 className="text-lg font-bold text-[var(--text)]">
                     Добавить прием пищи
@@ -1274,7 +1305,8 @@ function NutritionPrograms() {
                     {isMealSaving ? "Сохраняем..." : "Добавить прием пищи"}
                   </button>
                 </div>
-              </form>
+                </form>
+              )}
 
               <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1297,8 +1329,9 @@ function NutritionPrograms() {
                   </p>
                 ) : meals.length === 0 ? (
                   <p className="mt-5 rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-5 text-sm text-[var(--text-muted)]">
-                    В этом плане пока нет приемов пищи. Добавьте первый прием
-                    выше.
+                    {isClient
+                      ? "В этом плане пока нет приемов пищи."
+                      : "В этом плане пока нет приемов пищи. Добавьте первый прием выше."}
                   </p>
                 ) : (
                   <div className="mt-5 space-y-4">
@@ -1333,14 +1366,16 @@ function NutritionPrograms() {
                                 </p>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMeal(meal.id)}
-                              className="focus-ring inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                            >
-                              <TrashIcon />
-                              Удалить
-                            </button>
+                            {!isClient && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMeal(meal.id)}
+                                className="focus-ring inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                              >
+                                <TrashIcon />
+                                Удалить
+                              </button>
+                            )}
                           </div>
 
                           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
