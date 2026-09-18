@@ -1521,13 +1521,13 @@ function WorkoutPatterns() {
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <div className="min-w-[1040px]">
-                    <div className="grid grid-cols-[minmax(190px,1.45fr)_110px_96px_110px_minmax(210px,1.2fr)_176px] gap-2 bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-                      <span>Название упражнения</span>
+                <div className="min-w-0">
+                  <div className="min-w-0">
+                    <div className="hidden grid-cols-[minmax(120px,1.35fr)_72px_72px_80px_minmax(120px,1fr)_92px] gap-2 bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)] lg:grid">
+                      <span>Упражнение</span>
                       <span>Вес</span>
-                      <span>Подходы</span>
-                      <span>Повторения</span>
+                      <span>Подх.</span>
+                      <span>Повт.</span>
                       <span>Примечания</span>
                       <span />
                     </div>
@@ -1540,7 +1540,7 @@ function WorkoutPatterns() {
                           return (
                             <div
                               key={`${exercise.id}-${exerciseSet.id}`}
-                              className="grid grid-cols-[minmax(190px,1.45fr)_110px_96px_110px_minmax(210px,1.2fr)_176px] gap-2 px-3 py-2"
+                              className="grid min-w-0 grid-cols-2 gap-2 px-3 py-2 lg:grid-cols-[minmax(120px,1.35fr)_72px_72px_80px_minmax(120px,1fr)_92px] lg:items-center"
                             >
                               {isFirstSet ? (
                                 <input
@@ -1555,10 +1555,11 @@ function WorkoutPatterns() {
                                     )
                                   }
                                   placeholder={`Упражнение ${index + 1}`}
-                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                  aria-label="Название упражнения"
+                                  className="focus-ring col-span-2 min-h-10 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] lg:col-span-1"
                                 />
                               ) : (
-                                <div className="flex min-h-10 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm font-semibold text-[var(--text-muted)]">
+                                <div className="col-span-2 flex min-h-10 min-w-0 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm font-semibold text-[var(--text-muted)] lg:col-span-1">
                                   Подход {setIndex + 1}
                                 </div>
                               )}
@@ -1577,7 +1578,8 @@ function WorkoutPatterns() {
                                   )
                                 }
                                 placeholder="60"
-                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                aria-label="Вес"
+                                className="focus-ring min-h-10 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                               />
 
                               {isFirstSet ? (
@@ -1593,10 +1595,11 @@ function WorkoutPatterns() {
                                       event.target.value,
                                     )
                                   }
-                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                  aria-label="Количество подходов"
+                                  className="focus-ring min-h-10 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                                 />
                               ) : (
-                                <div className="flex min-h-10 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-muted)]">
+                                <div className="flex min-h-10 min-w-0 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-muted)]">
                                   {setIndex + 1}/{exercise.sets.length}
                                 </div>
                               )}
@@ -1615,7 +1618,8 @@ function WorkoutPatterns() {
                                     event.target.value,
                                   )
                                 }
-                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                aria-label="Повторения"
+                                className="focus-ring min-h-10 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                               />
 
                               <input
@@ -1644,10 +1648,11 @@ function WorkoutPatterns() {
                                     ? "Техника, темп..."
                                     : "Заметка к подходу"
                                 }
-                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                aria-label="Примечания"
+                                className="focus-ring col-span-2 min-h-10 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] lg:col-span-1"
                               />
 
-                              <div className="flex gap-2">
+                              <div className="col-span-2 flex min-w-0 gap-2 lg:col-span-1">
                                 {isFirstSet ? (
                                   <>
                                     <button
@@ -1655,9 +1660,11 @@ function WorkoutPatterns() {
                                       onClick={() =>
                                         handleAddSetDraft(exercise.id)
                                       }
-                                      className="focus-ring inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                      title="Добавить подход"
+                                      aria-label="Добавить подход"
+                                      className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
                                     >
-                                      + Подход
+                                      <PlusIcon />
                                     </button>
                                     <button
                                       type="button"
@@ -1665,9 +1672,11 @@ function WorkoutPatterns() {
                                         handleRemoveExerciseDraft(exercise.id)
                                       }
                                       disabled={exerciseDrafts.length === 1}
-                                      className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                      title="Удалить упражнение"
+                                      aria-label="Удалить упражнение"
+                                      className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100 text-xl font-semibold leading-none text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
-                                      Удалить
+                                      ×
                                     </button>
                                   </>
                                 ) : (
@@ -1679,9 +1688,11 @@ function WorkoutPatterns() {
                                         exerciseSet.id,
                                       )
                                     }
-                                    className="focus-ring inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                                    title="Удалить подход"
+                                    aria-label="Удалить подход"
+                                    className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100 text-xl font-semibold leading-none text-rose-600 transition hover:bg-rose-50"
                                   >
-                                    Удалить подход
+                                    ×
                                   </button>
                                 )}
                               </div>
