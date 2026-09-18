@@ -1503,8 +1503,8 @@ function WorkoutPatterns() {
                 />
               </label>
 
-              <div className="rounded-lg border border-[var(--border)] bg-white/70 p-3 sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-lg border border-[var(--border)] bg-white/70">
+                <div className="flex flex-col gap-3 border-b border-[var(--border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold text-[var(--text)]">
                       Силовые метрики
@@ -1521,216 +1521,176 @@ function WorkoutPatterns() {
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  {exerciseDrafts.map((exercise, index) => (
-                    <div
-                      key={exercise.id}
-                      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
-                    >
-                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(180px,1.5fr)_110px_minmax(170px,1fr)_auto] xl:items-end">
-                        <label className="block min-w-0">
-                          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                            Упражнение {index + 1}
-                          </span>
-                          <input
-                            type="text"
-                            required
-                            value={exercise.exerciseName}
-                            onChange={(event) =>
-                              handleExerciseDraftChange(
-                                exercise.id,
-                                "exerciseName",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Жим лежа"
-                            className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                          />
-                        </label>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[1040px]">
+                    <div className="grid grid-cols-[minmax(190px,1.45fr)_110px_96px_110px_minmax(210px,1.2fr)_176px] gap-2 bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+                      <span>Название упражнения</span>
+                      <span>Вес</span>
+                      <span>Подходы</span>
+                      <span>Повторения</span>
+                      <span>Примечания</span>
+                      <span />
+                    </div>
 
-                        <label className="block min-w-0">
-                          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                            Подходы
-                          </span>
-                          <input
-                            type="number"
-                            min="1"
-                            max="20"
-                            step="1"
-                            value={exercise.sets.length}
-                            onChange={(event) =>
-                              handleSetCountChange(
-                                exercise.id,
-                                event.target.value,
-                              )
-                            }
-                            className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                          />
-                        </label>
+                    <div className="divide-y divide-[var(--border)]">
+                      {exerciseDrafts.map((exercise, index) =>
+                        exercise.sets.map((exerciseSet, setIndex) => {
+                          const isFirstSet = setIndex === 0;
 
-                        <label className="block min-w-0">
-                          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                            Примечания
-                          </span>
-                          <input
-                            type="text"
-                            value={exercise.notes}
-                            onChange={(event) =>
-                              handleExerciseDraftChange(
-                                exercise.id,
-                                "notes",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Техника, темп, ограничение..."
-                            className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                          />
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExerciseDraft(exercise.id)}
-                          disabled={exerciseDrafts.length === 1}
-                          className="focus-ring min-h-10 rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-
-                      <div className="mt-3 rounded-lg border border-[var(--border)] bg-white/70">
-                        <div className="hidden grid-cols-[72px_minmax(90px,0.8fr)_minmax(90px,0.8fr)_minmax(130px,0.9fr)_minmax(160px,1.2fr)_44px] gap-2 border-b border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)] lg:grid">
-                          <span>Подход</span>
-                          <span>Вес</span>
-                          <span>Повторы</span>
-                          <span>Инт.</span>
-                          <span>Заметка</span>
-                          <span />
-                        </div>
-                        <div className="divide-y divide-[var(--border)]">
-                          {exercise.sets.map((exerciseSet, setIndex) => (
+                          return (
                             <div
-                              key={exerciseSet.id}
-                              className="grid grid-cols-1 gap-2 px-3 py-3 lg:grid-cols-[72px_minmax(90px,0.8fr)_minmax(90px,0.8fr)_minmax(130px,0.9fr)_minmax(160px,1.2fr)_44px] lg:items-center"
+                              key={`${exercise.id}-${exerciseSet.id}`}
+                              className="grid grid-cols-[minmax(190px,1.45fr)_110px_96px_110px_minmax(210px,1.2fr)_176px] gap-2 px-3 py-2"
                             >
-                              <p className="text-sm font-semibold text-[var(--text)]">
-                                Подход {setIndex + 1}
-                              </p>
-                              <label className="block min-w-0">
-                                <span className="mb-1 block text-xs font-semibold text-[var(--text-muted)] lg:hidden">
-                                  Вес, кг
-                                </span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.5"
-                                  value={exerciseSet.weightKg}
-                                  onChange={(event) =>
-                                    handleSetDraftChange(
-                                      exercise.id,
-                                      exerciseSet.id,
-                                      "weightKg",
-                                      event.target.value,
-                                    )
-                                  }
-                                  placeholder="60"
-                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                                />
-                              </label>
-
-                              <label className="block min-w-0">
-                                <span className="mb-1 block text-xs font-semibold text-[var(--text-muted)] lg:hidden">
-                                  Повторы
-                                </span>
-                                <input
-                                  type="number"
-                                  required
-                                  min="1"
-                                  step="1"
-                                  value={exerciseSet.repetitions}
-                                  onChange={(event) =>
-                                    handleSetDraftChange(
-                                      exercise.id,
-                                      exerciseSet.id,
-                                      "repetitions",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                                />
-                              </label>
-
-                              <label className="block min-w-0">
-                                <span className="mb-1 block text-xs font-semibold text-[var(--text-muted)] lg:hidden">
-                                  Интенсивность
-                                </span>
-                                <select
-                                  value={exerciseSet.intensity}
-                                  onChange={(event) =>
-                                    handleSetDraftChange(
-                                      exercise.id,
-                                      exerciseSet.id,
-                                      "intensity",
-                                      event.target
-                                        .value as WorkoutExerciseIntensity,
-                                    )
-                                  }
-                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-                                >
-                                  <option value="low">Легкая</option>
-                                  <option value="medium">Средняя</option>
-                                  <option value="high">Высокая</option>
-                                </select>
-                              </label>
-
-                              <label className="block min-w-0">
-                                <span className="mb-1 block text-xs font-semibold text-[var(--text-muted)] lg:hidden">
-                                  Заметка
-                                </span>
+                              {isFirstSet ? (
                                 <input
                                   type="text"
-                                  value={exerciseSet.notes}
+                                  required
+                                  value={exercise.exerciseName}
                                   onChange={(event) =>
-                                    handleSetDraftChange(
+                                    handleExerciseDraftChange(
                                       exercise.id,
-                                      exerciseSet.id,
-                                      "notes",
+                                      "exerciseName",
                                       event.target.value,
                                     )
                                   }
-                                  placeholder="RIR, темп..."
+                                  placeholder={`Упражнение ${index + 1}`}
                                   className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                                 />
-                              </label>
+                              ) : (
+                                <div className="flex min-h-10 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm font-semibold text-[var(--text-muted)]">
+                                  Подход {setIndex + 1}
+                                </div>
+                              )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveSetDraft(
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={exerciseSet.weightKg}
+                                onChange={(event) =>
+                                  handleSetDraftChange(
                                     exercise.id,
                                     exerciseSet.id,
+                                    "weightKg",
+                                    event.target.value,
                                   )
                                 }
-                                disabled={exercise.sets.length === 1}
-                                className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                Удалить
-                              </button>
+                                placeholder="60"
+                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                              />
+
+                              {isFirstSet ? (
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="20"
+                                  step="1"
+                                  value={exercise.sets.length}
+                                  onChange={(event) =>
+                                    handleSetCountChange(
+                                      exercise.id,
+                                      event.target.value,
+                                    )
+                                  }
+                                  className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                                />
+                              ) : (
+                                <div className="flex min-h-10 items-center rounded-lg bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-muted)]">
+                                  {setIndex + 1}/{exercise.sets.length}
+                                </div>
+                              )}
+
+                              <input
+                                type="number"
+                                required
+                                min="1"
+                                step="1"
+                                value={exerciseSet.repetitions}
+                                onChange={(event) =>
+                                  handleSetDraftChange(
+                                    exercise.id,
+                                    exerciseSet.id,
+                                    "repetitions",
+                                    event.target.value,
+                                  )
+                                }
+                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                              />
+
+                              <input
+                                type="text"
+                                value={
+                                  isFirstSet
+                                    ? exercise.notes
+                                    : exerciseSet.notes
+                                }
+                                onChange={(event) =>
+                                  isFirstSet
+                                    ? handleExerciseDraftChange(
+                                        exercise.id,
+                                        "notes",
+                                        event.target.value,
+                                      )
+                                    : handleSetDraftChange(
+                                        exercise.id,
+                                        exerciseSet.id,
+                                        "notes",
+                                        event.target.value,
+                                      )
+                                }
+                                placeholder={
+                                  isFirstSet
+                                    ? "Техника, темп..."
+                                    : "Заметка к подходу"
+                                }
+                                className="focus-ring min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                              />
+
+                              <div className="flex gap-2">
+                                {isFirstSet ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAddSetDraft(exercise.id)
+                                      }
+                                      className="focus-ring inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                    >
+                                      + Подход
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveExerciseDraft(exercise.id)
+                                      }
+                                      disabled={exerciseDrafts.length === 1}
+                                      className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      Удалить
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRemoveSetDraft(
+                                        exercise.id,
+                                        exerciseSet.id,
+                                      )
+                                    }
+                                    className="focus-ring inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-rose-100 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                                  >
+                                    Удалить подход
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                        <div className="border-t border-[var(--border)] px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => handleAddSetDraft(exercise.id)}
-                            className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                          >
-                            <PlusIcon />
-                            Добавить подход
-                          </button>
-                        </div>
-                      </div>
+                          );
+                        }),
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
 
