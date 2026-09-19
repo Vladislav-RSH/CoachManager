@@ -230,59 +230,289 @@ const createExerciseDraft = (): WorkoutExerciseDraft => ({
   sets: [createSetDraft()],
 });
 
+const setPatternSearch = /\d+(?:[.,]\d+)?\s*(?:кг|kg)?\s*[xх×*]\s*\d+/i;
+
+const normalizeWorkoutNumber = (value: string) =>
+  Number(value.trim().replace(",", "."));
+
+const stringifyWorkoutNumber = (value: number | null) =>
+  value === null ? "" : String(value);
+
+const createSetDraftFromValues = (
+  weightKg: number | null,
+  repetitions: number,
+  notes = "",
+): WorkoutSetDraft => ({
+  id: createDraftId(),
+  weightKg: stringifyWorkoutNumber(weightKg),
+  repetitions: String(repetitions),
+  intensity: "medium",
+  notes,
+});
+
+const createRepeatedSetDrafts = (
+  count: number,
+  weightKg: number | null,
+  repetitions: number,
+  notes = "",
+) =>
+  Array.from({ length: Math.min(Math.max(Math.trunc(count), 1), 20) }, () =>
+    createSetDraftFromValues(weightKg, repetitions, notes),
+  );
+
+const cleanWorkoutLine = (line: string) =>
+  line
+    .trim()
+    .replace(/^[-*•]\s+/, "")
+    .replace(/^\d+[.)]\s+/, "")
+    .replace(/^[A-Za-zА-Яа-я]\d+[.)]?\s+/, "")
+    .trim();
+
+const getTrailingSetNote = (segment: string, matchText: string) =>
+  segment
+    .slice(matchText.length)
+    .replace(/^[\s,.;:—–-]+/, "")
+    .trim();
+
+const parseWorkoutSetSegment = (segment: string): WorkoutSetDraft[] => {
+  const cleanSegment = segment.trim();
+
+  if (!cleanSegment) {
+    return [];
+  }
+
+  const tripleMatch = cleanSegment.match(
+    /^(\d+(?:[.,]\d+)?)\s*(?:кг|kg)?\s*[xх×*]\s*(\d+)\s*[xх×*]\s*(\d+(?:[.,]\d+)?)/i,
+  );
+
+  if (tripleMatch) {
+    const firstValue = normalizeWorkoutNumber(tripleMatch[1]);
+    const repetitions = Number(tripleMatch[2]);
+    const thirdValue = normalizeWorkoutNumber(tripleMatch[3]);
+    const trailingNote = getTrailingSetNote(cleanSegment, tripleMatch[0]);
+
+    if (!Number.isFinite(firstValue) || !Number.isInteger(repetitions)) {
+      return [];
+    }
+
+    if (firstValue <= 10 && thirdValue > 10 && Number.isInteger(firstValue)) {
+      return createRepeatedSetDrafts(
+        firstValue,
+        thirdValue,
+        repetitions,
+        trailingNote,
+      );
+    }
+
+    if (Number.isInteger(thirdValue)) {
+      return createRepeatedSetDrafts(
+        thirdValue,
+        firstValue,
+        repetitions,
+        trailingNote,
+      );
+    }
+
+    return [];
+  }
+
+  const setsRepsWeightMatch = cleanSegment.match(
+    /^(\d+)\s*[xх×*]\s*(\d+)\s+(\d+(?:[.,]\d+)?)\s*(?:кг|kg)?/i,
+  );
+
+  if (setsRepsWeightMatch) {
+    const setCount = Number(setsRepsWeightMatch[1]);
+    const repetitions = Number(setsRepsWeightMatch[2]);
+    const weightKg = normalizeWorkoutNumber(setsRepsWeightMatch[3]);
+    const trailingNote = getTrailingSetNote(
+      cleanSegment,
+      setsRepsWeightMatch[0],
+    );
+
+    if (
+      Number.isInteger(setCount) &&
+      Number.isInteger(repetitions) &&
+      Number.isFinite(weightKg)
+    ) {
+      return createRepeatedSetDrafts(
+        setCount,
+        weightKg,
+        repetitions,
+        trailingNote,
+      );
+    }
+  }
+
+  const doubleMatch = cleanSegment.match(
+    /^(\d+(?:[.,]\d+)?)\s*(?:кг|kg)?\s*[xх×*]\s*(\d+)/i,
+  );
+
+  if (!doubleMatch) {
+    return [];
+  }
+
+  const firstValue = normalizeWorkoutNumber(doubleMatch[1]);
+  const repetitions = Number(doubleMatch[2]);
+  const trailingNote = getTrailingSetNote(cleanSegment, doubleMatch[0]);
+  const hasWeightUnit = /\b(?:кг|kg)\b/i.test(cleanSegment);
+
+  if (!Number.isFinite(firstValue) || !Number.isInteger(repetitions)) {
+    return [];
+  }
+
+  if (firstValue <= 10 && !hasWeightUnit && Number.isInteger(firstValue)) {
+    return createRepeatedSetDrafts(
+      firstValue,
+      null,
+      repetitions,
+      trailingNote,
+    );
+  }
+
+  return [createSetDraftFromValues(firstValue, repetitions, trailingNote)];
+};
+
+const parseQuickWorkoutLine = (
+  line: string,
+): WorkoutExerciseDraft | null => {
+  const cleanLine = cleanWorkoutLine(line);
+
+  if (!cleanLine) {
+    return null;
+  }
+
+  const [exercisePart, ...noteParts] = cleanLine.split("|");
+  const patternIndex = exercisePart.search(setPatternSearch);
+
+  if (patternIndex < 0) {
+    return null;
+  }
+
+  const exerciseName = exercisePart
+    .slice(0, patternIndex)
+    .replace(/[\s:—–-]+$/, "")
+    .trim();
+  const setText = exercisePart.slice(patternIndex);
+  const sets = setText
+    .split(/[,;]+/)
+    .flatMap(parseWorkoutSetSegment)
+    .filter((set) => set.repetitions.trim());
+
+  if (!exerciseName || sets.length === 0) {
+    return null;
+  }
+
+  return {
+    id: createDraftId(),
+    exerciseName,
+    notes: noteParts.join("|").trim(),
+    sets,
+  };
+};
+
+const parseQuickWorkoutText = (value: string): WorkoutExerciseDraft[] =>
+  value
+    .split(/\r?\n/)
+    .map(parseQuickWorkoutLine)
+    .filter((draft): draft is WorkoutExerciseDraft => Boolean(draft));
+
+const formatDraftSetForText = (exerciseSet: WorkoutSetDraft) => {
+  const weightText = exerciseSet.weightKg.trim();
+  const repetitionsText = exerciseSet.repetitions.trim();
+  const notesText = exerciseSet.notes.trim();
+  const metricsText = weightText
+    ? `${weightText}x${repetitionsText}`
+    : repetitionsText;
+
+  return notesText ? `${metricsText} ${notesText}` : metricsText;
+};
+
+const serializeExerciseDraftsToQuickText = (
+  drafts: WorkoutExerciseDraft[],
+) =>
+  drafts
+    .filter((draft) => draft.exerciseName.trim())
+    .map((draft) => {
+      const setsText = draft.sets.map(formatDraftSetForText).join(", ");
+      const notesText = draft.notes.trim() ? ` | ${draft.notes.trim()}` : "";
+
+      return `${draft.exerciseName.trim()} ${setsText}${notesText}`.trim();
+    })
+    .join("\n");
+
+const hasMeaningfulExerciseDraft = (draft: WorkoutExerciseDraft) => {
+  const hasExerciseName = draft.exerciseName.trim().length > 0;
+  const hasSetData = draft.sets.some(
+    (set) =>
+      set.weightKg.trim() ||
+      set.notes.trim() ||
+      (set.repetitions.trim() && set.repetitions.trim() !== "10"),
+  );
+
+  return hasExerciseName || hasSetData || draft.notes.trim().length > 0;
+};
+
 const normalizeWorkoutExerciseDrafts = (
   value: unknown,
 ): WorkoutExerciseDraft[] => {
-  if (!Array.isArray(value) || value.length === 0) {
+  if (!Array.isArray(value)) {
     return [createExerciseDraft()];
   }
 
-  return value.map((draftValue) => {
-    const draft = draftValue as Partial<WorkoutExerciseDraft>;
-    const sets =
-      Array.isArray(draft.sets) && draft.sets.length > 0
-        ? draft.sets
-        : [createSetDraft()];
+  if (value.length === 0) {
+    return [];
+  }
 
-    return {
-      id: typeof draft.id === "string" ? draft.id : createDraftId(),
-      exerciseName:
-        typeof draft.exerciseName === "string" ? draft.exerciseName : "",
-      notes: typeof draft.notes === "string" ? draft.notes : "",
-      sets: sets.map((setValue) => {
-        const exerciseSet = setValue as Partial<WorkoutSetDraft>;
-        const intensity = exerciseSet.intensity;
+  return value
+    .map((draftValue) => {
+      const draft = draftValue as Partial<WorkoutExerciseDraft>;
+      const sets =
+        Array.isArray(draft.sets) && draft.sets.length > 0
+          ? draft.sets
+          : [createSetDraft()];
 
-        return {
-          id:
-            typeof exerciseSet.id === "string"
-              ? exerciseSet.id
-              : createDraftId(),
-          weightKg:
-            typeof exerciseSet.weightKg === "string"
-              ? exerciseSet.weightKg
-              : "",
-          repetitions:
-            typeof exerciseSet.repetitions === "string"
-              ? exerciseSet.repetitions
-              : "10",
-          intensity:
-            intensity === "low" || intensity === "medium" || intensity === "high"
-              ? intensity
-              : "medium",
-          notes:
-            typeof exerciseSet.notes === "string" ? exerciseSet.notes : "",
-        };
-      }),
-    };
-  });
+      return {
+        id: typeof draft.id === "string" ? draft.id : createDraftId(),
+        exerciseName:
+          typeof draft.exerciseName === "string" ? draft.exerciseName : "",
+        notes: typeof draft.notes === "string" ? draft.notes : "",
+        sets: sets.map((setValue) => {
+          const exerciseSet = setValue as Partial<WorkoutSetDraft>;
+          const intensity = exerciseSet.intensity;
+
+          return {
+            id:
+              typeof exerciseSet.id === "string"
+                ? exerciseSet.id
+                : createDraftId(),
+            weightKg:
+              typeof exerciseSet.weightKg === "string"
+                ? exerciseSet.weightKg
+                : "",
+            repetitions:
+              typeof exerciseSet.repetitions === "string"
+                ? exerciseSet.repetitions
+                : "10",
+            intensity:
+              intensity === "low" ||
+              intensity === "medium" ||
+              intensity === "high"
+                ? intensity
+                : "medium",
+            notes:
+              typeof exerciseSet.notes === "string" ? exerciseSet.notes : "",
+          };
+        }),
+      };
+    })
+    .filter(hasMeaningfulExerciseDraft);
 };
 
 const mapTrainingDayToExerciseDrafts = (
   trainingDay: WorkoutTrainingDay,
 ): WorkoutExerciseDraft[] =>
   trainingDay.exercises.length === 0
-    ? [createExerciseDraft()]
+    ? []
     : trainingDay.exercises.map((exercise) => ({
         id: exercise.id,
         exerciseName: exercise.exerciseName,
@@ -335,7 +565,7 @@ function WorkoutPatterns() {
       dayDate: todayDateKey,
       dayTitle: "",
       dayContent: "",
-      exerciseDrafts: [createExerciseDraft()],
+      exerciseDrafts: [],
     }),
   );
   const [clients, setClients] = useState<WorkoutClient[]>([]);
@@ -768,9 +998,7 @@ function WorkoutPatterns() {
 
   const handleRemoveExerciseDraft = (id: string) => {
     setExerciseDrafts((currentDrafts) =>
-      currentDrafts.length === 1
-        ? currentDrafts
-        : currentDrafts.filter((draft) => draft.id !== id),
+      currentDrafts.filter((draft) => draft.id !== id),
     );
   };
 
@@ -860,8 +1088,46 @@ function WorkoutPatterns() {
     );
   };
 
+  const handleQuickWorkoutTextChange = (value: string) => {
+    setDayContent(value);
+    setExerciseDrafts(parseQuickWorkoutText(value));
+  };
+
+  const getSourceTrainingDayForCopy = () =>
+    [...trainingDays]
+      .filter((trainingDay) => trainingDay.id !== editingTrainingDayId)
+      .sort((firstDay, secondDay) =>
+        secondDay.trainingDate.localeCompare(firstDay.trainingDate),
+      )[0];
+
+  const handleUsePreviousTrainingDay = () => {
+    const sourceTrainingDay = getSourceTrainingDayForCopy();
+
+    if (!sourceTrainingDay) {
+      return;
+    }
+
+    const sourceDrafts = mapTrainingDayToExerciseDrafts(sourceTrainingDay);
+    const sourceContent =
+      sourceTrainingDay.content.trim() ||
+      serializeExerciseDraftsToQuickText(sourceDrafts);
+
+    setDayTitle(sourceTrainingDay.title);
+    setDayContent(sourceContent);
+    setExerciseDrafts(sourceDrafts);
+  };
+
+  const handleClearTrainingDayForm = () => {
+    setDayTitle("");
+    setDayContent("");
+    setExerciseDrafts([]);
+    setErrorMessage(null);
+  };
+
   const buildExercisePayloads = (): NormalizedExerciseDraft[] | null => {
-    const normalizedDrafts = exerciseDrafts.map((draft, exerciseIndex) => ({
+    const meaningfulDrafts = exerciseDrafts.filter(hasMeaningfulExerciseDraft);
+
+    const normalizedDrafts = meaningfulDrafts.map((draft, exerciseIndex) => ({
       draft,
       exerciseIndex,
       sets: draft.sets.map((set, setIndex) => {
@@ -1054,15 +1320,20 @@ function WorkoutPatterns() {
     setEditingTrainingDayId(null);
     setDayTitle("");
     setDayContent("");
-    setExerciseDrafts([createExerciseDraft()]);
+    setExerciseDrafts([]);
   };
 
   const handleEditTrainingDay = (trainingDay: WorkoutTrainingDay) => {
+    const nextExerciseDrafts = mapTrainingDayToExerciseDrafts(trainingDay);
+    const nextDayContent =
+      trainingDay.content.trim() ||
+      serializeExerciseDraftsToQuickText(nextExerciseDrafts);
+
     setEditingTrainingDayId(trainingDay.id);
     setDayDate(trainingDay.trainingDate);
     setDayTitle(trainingDay.title);
-    setDayContent(trainingDay.content);
-    setExerciseDrafts(mapTrainingDayToExerciseDrafts(trainingDay));
+    setDayContent(nextDayContent);
+    setExerciseDrafts(nextExerciseDrafts);
     setErrorMessage(null);
 
     window.setTimeout(() => {
@@ -1091,11 +1362,19 @@ function WorkoutPatterns() {
       return;
     }
 
+    const resolvedContent =
+      dayContent.trim() || serializeExerciseDraftsToQuickText(exerciseDrafts);
+
+    if (!resolvedContent && normalizedExercises.length === 0) {
+      setErrorMessage("Добавьте текст тренировки или упражнение.");
+      return;
+    }
+
     const payload: NewWorkoutTrainingDayRow = {
       program_id: selectedProgramId,
       training_date: dayDate,
-      title: dayTitle.trim(),
-      content: dayContent.trim(),
+      title: dayTitle.trim() || "Тренировка",
+      content: resolvedContent,
     };
 
     if (editingTrainingDayId && !editingTrainingDay) {
@@ -1120,7 +1399,7 @@ function WorkoutPatterns() {
         setErrorMessage(
           error?.code === "23505"
             ? "В этой программе уже есть план на выбранный день."
-            : "Не удалось обновить тренировочный день.",
+            : "Не удалось обновить тренировочный день. Проверьте, что в Supabase применена миграция 015_allow_workout_training_day_updates.sql.",
         );
         return;
       }
@@ -1260,7 +1539,7 @@ function WorkoutPatterns() {
             </p>
             <p className="mt-1 font-bold text-[var(--text)]">
               {selectedClient
-                ? `${selectedClient.firstName} ${selectedClient.secondName}`
+                ? selectedClient.firstName
                 : "Аккаунт пока не привязан к карточке клиента"}
             </p>
           </div>
@@ -1280,7 +1559,7 @@ function WorkoutPatterns() {
               ) : (
                 clients.map((client) => (
                   <option key={client.id} value={client.id}>
-                    {client.firstName} {client.secondName}
+                    {client.firstName}
                   </option>
                 ))
               )}
@@ -1307,7 +1586,7 @@ function WorkoutPatterns() {
               </h2>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
                 {selectedClient
-                  ? `Для клиента ${selectedClient.firstName} ${selectedClient.secondName}`
+                  ? `Для клиента ${selectedClient.firstName}`
                   : "Выберите клиента, чтобы создать программу."}
               </p>
 
@@ -1482,7 +1761,6 @@ function WorkoutPatterns() {
                   </span>
                   <input
                     type="text"
-                    required
                     value={dayTitle}
                     onChange={(event) => setDayTitle(event.target.value)}
                     placeholder="Например: День ног"
@@ -1491,23 +1769,86 @@ function WorkoutPatterns() {
                 </label>
               </div>
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-                  Общие заметки к дню
-                </span>
+              <div className="block">
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="block text-sm font-semibold text-[var(--text)]">
+                    План тренировки
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleUsePreviousTrainingDay}
+                      disabled={!getSourceTrainingDayForCopy()}
+                      className="focus-ring min-h-9 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Вставить прошлую
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearTrainingDayForm}
+                      className="focus-ring min-h-9 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   value={dayContent}
-                  onChange={(event) => setDayContent(event.target.value)}
-                  placeholder="Разминка, техника, ограничения, отдых..."
-                  className="focus-ring min-h-28 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+                  onChange={(event) =>
+                    handleQuickWorkoutTextChange(event.target.value)
+                  }
+                  placeholder={`Жим лежа 60x10, 65x8, 70x6 | пауза внизу
+Тяга верхнего блока 45x12x3
+Жим гантелей сидя 3x10 22кг
+Планка 3x60 сек`}
+                  className="focus-ring min-h-64 w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 font-mono text-sm leading-6 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                 />
-              </label>
+              </div>
 
-              <div className="rounded-lg border border-[var(--border)] bg-white/70">
+              <div className="rounded-lg border border-[var(--border)] bg-white/70 p-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="font-bold text-[var(--text)]">
+                    Разобранный план
+                  </h3>
+                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                    {exerciseDrafts.length}
+                  </span>
+                </div>
+
+                {exerciseDrafts.length === 0 ? (
+                  <p className="mt-3 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+                    В плане пока нет распознанных упражнений.
+                  </p>
+                ) : (
+                  <div className="mt-3 divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                    {exerciseDrafts.map((exercise) => (
+                      <div
+                        key={exercise.id}
+                        className="grid gap-2 px-3 py-3 lg:grid-cols-[minmax(140px,1fr)_minmax(180px,1.2fr)_minmax(120px,1fr)] lg:items-center"
+                      >
+                        <p className="min-w-0 truncate font-semibold text-[var(--text)]">
+                          {exercise.exerciseName || "Без названия"}
+                        </p>
+                        <p className="min-w-0 text-sm text-[var(--text)]">
+                          {exercise.sets.map(formatDraftSetForText).join(", ")}
+                        </p>
+                        <p className="min-w-0 text-sm text-[var(--text-muted)]">
+                          {exercise.notes || "Без примечания"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <details className="rounded-lg border border-[var(--border)] bg-white/70">
+                <summary className="cursor-pointer px-3 py-3 font-bold text-[var(--text)] marker:text-[var(--accent)]">
+                  Точная правка
+                </summary>
                 <div className="flex flex-col gap-3 border-b border-[var(--border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold text-[var(--text)]">
-                      Силовые метрики
+                      Подходы и веса
                     </h3>
                   </div>
 
@@ -1671,10 +2012,9 @@ function WorkoutPatterns() {
                                       onClick={() =>
                                         handleRemoveExerciseDraft(exercise.id)
                                       }
-                                      disabled={exerciseDrafts.length === 1}
                                       title="Удалить упражнение"
                                       aria-label="Удалить упражнение"
-                                      className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100 text-xl font-semibold leading-none text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                      className="focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100 text-xl font-semibold leading-none text-rose-600 transition hover:bg-rose-50"
                                     >
                                       ×
                                     </button>
@@ -1703,7 +2043,7 @@ function WorkoutPatterns() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </details>
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button

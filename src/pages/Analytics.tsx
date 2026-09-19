@@ -268,7 +268,7 @@ const formatTonnagePeriodRange = (
 
 const mapClientRow = (row: ClientRow): AnalyticsClient => ({
   id: row.id,
-  name: `${row.first_name} ${row.second_name}`,
+  name: row.first_name,
   height: row.height === null ? null : Number(row.height),
   currentWeight:
     row.current_weight === null ? null : Number(row.current_weight),

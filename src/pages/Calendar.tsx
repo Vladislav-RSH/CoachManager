@@ -515,7 +515,7 @@ function Calendar() {
                   ) : (
                     clients.map((client) => (
                       <option key={client.id} value={client.id}>
-                        {client.firstName} {client.secondName}
+                        {client.firstName}
                       </option>
                     ))
                   )}
@@ -577,9 +577,7 @@ function Calendar() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-bold text-[var(--text)]">
-                            {client
-                              ? `${client.firstName} ${client.secondName}`
-                              : "Клиент удален"}
+                            {client ? client.firstName : "Клиент удален"}
                           </p>
                           {assignment.note && (
                             <p className="mt-1 text-sm text-[var(--text-muted)]">

@@ -387,7 +387,7 @@ function InvitePage() {
                   Клиентский доступ
                 </p>
                 <h1 className="mt-1 truncate text-2xl font-bold text-[var(--text)] sm:text-3xl">
-                  {client.firstName} {client.secondName}
+                  {client.firstName}
                 </h1>
                 <p className="mt-2 text-sm text-[var(--text-muted)]">
                   Тренер: {portalData.trainer.fullName || "Tempo"}

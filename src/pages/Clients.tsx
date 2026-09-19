@@ -46,7 +46,6 @@ type Client = {
 
 type ClientFormDraft = {
   firstName: string;
-  secondName: string;
   date: string;
   height: string;
   currentWeight: string;
@@ -168,7 +167,6 @@ const createClientFormDraft = (
   measurement?: ClientMeasurement,
 ): ClientFormDraft => ({
   firstName: client?.firstName ?? "",
-  secondName: client?.secondName ?? "",
   date: client?.date ?? "",
   height: stringifyNullableNumber(client?.height),
   currentWeight: stringifyNullableNumber(client?.currentWeight),
@@ -189,7 +187,6 @@ const getClientFormDraftFromFormData = (
   formData: FormData,
 ): ClientFormDraft => ({
   firstName: String(formData.get("firstName") ?? ""),
-  secondName: String(formData.get("secondName") ?? ""),
   date: String(formData.get("date") ?? ""),
   height: String(formData.get("height") ?? ""),
   currentWeight: String(formData.get("currentWeight") ?? ""),
@@ -395,9 +392,7 @@ function Clients() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return clients.filter((client) => {
-      const searchableText = `${client.firstName} ${client.secondName} ${
-        client.goal
-      }`.toLowerCase();
+      const searchableText = `${client.firstName} ${client.goal}`.toLowerCase();
 
       return searchableText.includes(normalizedQuery);
     });
@@ -491,9 +486,7 @@ function Clients() {
     const token = String((data as { token: string }).token);
 
     setInviteLink(createClientInviteLink(token));
-    setInviteClientName(
-      `${selectedClient.firstName} ${selectedClient.secondName}`,
-    );
+    setInviteClientName(selectedClient.firstName);
   };
 
   const handleCopyInviteLink = async () => {
@@ -582,7 +575,7 @@ function Clients() {
     const clientPayload: NewClientRow = {
       trainer_id: user.id,
       first_name: String(formData.get("firstName") ?? "").trim(),
-      second_name: String(formData.get("secondName") ?? "").trim(),
+      second_name: "",
       birth_date: String(formData.get("date") ?? "") || null,
       height,
       current_weight: currentWeight,
@@ -782,7 +775,7 @@ function Clients() {
                 </p>
                 <h2 className="mt-1 text-xl font-bold">
                   {editingClient
-                    ? `${editingClient.firstName} ${editingClient.secondName}`
+                    ? editingClient.firstName
                     : "Добавить клиента"}
                 </h2>
               </div>
@@ -808,20 +801,6 @@ function Clients() {
                   required
                   defaultValue={clientFormDraft.firstName}
                   placeholder="Например, Клиент"
-                  className={inputClass}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">
-                  Метка клиента
-                </span>
-                <input
-                  type="text"
-                  name="secondName"
-                  required
-                  defaultValue={clientFormDraft.secondName}
-                  placeholder="Например, 01 или инициалы"
                   className={inputClass}
                 />
               </label>
@@ -1143,11 +1122,10 @@ function Clients() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-blue-50 font-bold text-[var(--accent)]">
                       {client.firstName.charAt(0)}
-                      {client.secondName.charAt(0)}
                     </span>
                     <div className="min-w-0">
                       <h2 className="truncate font-bold text-[var(--text)]">
-                        {client.firstName} {client.secondName}
+                        {client.firstName}
                       </h2>
                       <p className="text-sm text-[var(--text-muted)]">
                         {client.goal || "Цель пока не указана"}
@@ -1246,7 +1224,7 @@ function Clients() {
                     type="button"
                     onClick={() => handleDelete(client.id)}
                     title="Удалить клиента"
-                    aria-label={`Удалить клиента ${client.firstName} ${client.secondName}`}
+                    aria-label={`Удалить клиента ${client.firstName}`}
                     className="focus-ring min-h-10 rounded-lg border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
                   >
                     Удалить

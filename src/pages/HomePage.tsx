@@ -248,9 +248,7 @@ function HomePage() {
                     </time>
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-[var(--text)]">
-                        {client
-                          ? `${client.firstName} ${client.secondName}`
-                          : "Клиент удален"}
+                        {client ? client.firstName : "Клиент удален"}
                       </p>
                       <p className="text-sm text-[var(--text-muted)]">
                         {assignment.note || "Без заметки"}

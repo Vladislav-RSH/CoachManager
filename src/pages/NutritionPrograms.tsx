@@ -1008,7 +1008,7 @@ function NutritionPrograms() {
             </p>
             <p className="mt-1 font-bold text-[var(--text)]">
               {selectedClient
-                ? `${selectedClient.firstName} ${selectedClient.secondName}`
+                ? selectedClient.firstName
                 : "Аккаунт пока не привязан к карточке клиента"}
             </p>
           </div>
@@ -1028,7 +1028,7 @@ function NutritionPrograms() {
               ) : (
                 clients.map((client) => (
                   <option key={client.id} value={client.id}>
-                    {client.firstName} {client.secondName}
+                    {client.firstName}
                   </option>
                 ))
               )}
@@ -1054,7 +1054,7 @@ function NutritionPrograms() {
             </h2>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
               {selectedClient
-                ? `Для клиента ${selectedClient.firstName} ${selectedClient.secondName}`
+                ? `Для клиента ${selectedClient.firstName}`
                 : "Выберите клиента, чтобы создать план."}
             </p>
 
