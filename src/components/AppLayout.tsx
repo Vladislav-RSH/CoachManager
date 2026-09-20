@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import Display from "./Display";
-import Footer from "./Footer";
 import Header from "./Header";
 import LeftBoard from "./LeftBoard";
 
@@ -63,8 +62,6 @@ function AppLayout() {
           </div>
         </div>
       )}
-
-      <Footer />
     </section>
   );
 }
