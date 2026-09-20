@@ -4,7 +4,6 @@ import {
   supabase,
   type ClientMeasurementRow,
   type ClientRow,
-  type WorkoutExerciseIntensity,
   type WorkoutExerciseSetRow,
   type WorkoutProgramRow,
   type WorkoutTrainingDayRow,
@@ -23,11 +22,9 @@ type BodyMetricKey =
   | "fatMassKg";
 
 type StrengthMetricKey =
-  | "tonnageKg"
   | "maxWeightKg"
-  | "repetitions";
-
-type TonnagePeriod = "workout" | "week" | "month";
+  | "repetitions"
+  | "setsCount";
 
 type BodyMetric = {
   key: BodyMetricKey;
@@ -77,14 +74,20 @@ type AnalyticsStrengthSet = {
   setNumber: number;
   weightKg: number | null;
   repetitions: number;
-  intensity: WorkoutExerciseIntensity;
   notes: string;
-  tonnageKg: number | null;
 };
 
 type TrendPoint = {
   date: string;
   value: number;
+};
+
+type ExerciseWorkoutSummary = {
+  date: string;
+  sets: AnalyticsStrengthSet[];
+  maxWeightKg: number | null;
+  totalRepetitions: number;
+  setCount: number;
 };
 
 const bodyMetrics: BodyMetric[] = [
@@ -152,12 +155,6 @@ const bodyMetrics: BodyMetric[] = [
 
 const strengthMetrics: StrengthMetric[] = [
   {
-    key: "tonnageKg",
-    label: "Тоннаж",
-    unit: "кг",
-    color: "#2563eb",
-  },
-  {
     key: "maxWeightKg",
     label: "Максимальный вес",
     unit: "кг",
@@ -169,19 +166,13 @@ const strengthMetrics: StrengthMetric[] = [
     unit: "раз",
     color: "#0f766e",
   },
+  {
+    key: "setsCount",
+    label: "Подходы",
+    unit: "подх.",
+    color: "#2563eb",
+  },
 ];
-
-const intensityLabels: Record<WorkoutExerciseIntensity, string> = {
-  low: "Легкая",
-  medium: "Средняя",
-  high: "Высокая",
-};
-
-const intensityClasses: Record<WorkoutExerciseIntensity, string> = {
-  low: "bg-emerald-50 text-emerald-700",
-  medium: "bg-amber-50 text-amber-700",
-  high: "bg-rose-50 text-rose-700",
-};
 
 const missingSupabaseMessage =
   "Добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в .env.local.";
@@ -201,11 +192,6 @@ const fullDateFormatter = new Intl.DateTimeFormat("ru-RU", {
   year: "numeric",
 });
 
-const monthYearFormatter = new Intl.DateTimeFormat("ru-RU", {
-  month: "long",
-  year: "numeric",
-});
-
 const formatNumber = (value: number | null) =>
   value === null ? "—" : numberFormatter.format(value);
 
@@ -214,57 +200,6 @@ const formatDate = (dateValue: string) =>
 
 const formatShortDate = (dateValue: string) =>
   dateFormatter.format(new Date(`${dateValue}T00:00:00`));
-
-const dateToKey = (date: Date) => {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${date.getFullYear()}-${month}-${day}`;
-};
-
-const getTonnagePeriodRange = (
-  dateValue: string,
-  period: TonnagePeriod,
-) => {
-  const date = new Date(`${dateValue}T00:00:00`);
-
-  if (period === "workout") {
-    return { start: dateValue, end: dateValue };
-  }
-
-  if (period === "week") {
-    const dayOfWeek = date.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const start = new Date(date);
-    start.setDate(date.getDate() + mondayOffset);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    return { start: dateToKey(start), end: dateToKey(end) };
-  }
-
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-  return { start: dateToKey(start), end: dateToKey(end) };
-};
-
-const formatTonnagePeriodRange = (
-  dateValue: string,
-  period: TonnagePeriod,
-) => {
-  const range = getTonnagePeriodRange(dateValue, period);
-
-  if (period === "workout") {
-    return formatDate(dateValue);
-  }
-
-  if (period === "month") {
-    return monthYearFormatter.format(new Date(`${range.start}T00:00:00`));
-  }
-
-  return `${formatShortDate(range.start)} – ${formatShortDate(range.end)}`;
-};
 
 const mapClientRow = (row: ClientRow): AnalyticsClient => ({
   id: row.id,
@@ -327,14 +262,6 @@ const getStrengthMetricValue = (
   rows: AnalyticsStrengthSet[],
   metricKey: StrengthMetricKey,
 ) => {
-  if (metricKey === "tonnageKg") {
-    const weightedRows = rows.filter((row) => row.tonnageKg !== null);
-
-    return weightedRows.length > 0
-      ? weightedRows.reduce((total, row) => total + (row.tonnageKg ?? 0), 0)
-      : null;
-  }
-
   if (metricKey === "maxWeightKg") {
     const weights = rows
       .map((row) => row.weightKg)
@@ -347,24 +274,11 @@ const getStrengthMetricValue = (
     return rows.reduce((total, row) => total + row.repetitions, 0);
   }
 
-  return null;
-};
-
-const getTonnageForPeriod = (
-  rows: AnalyticsStrengthSet[],
-  dateValue: string,
-  period: TonnagePeriod,
-) => {
-  if (!dateValue) {
-    return null;
+  if (metricKey === "setsCount") {
+    return rows.length;
   }
 
-  const range = getTonnagePeriodRange(dateValue, period);
-  const periodRows = rows.filter(
-    (row) => row.trainingDate >= range.start && row.trainingDate <= range.end,
-  );
-
-  return getStrengthMetricValue(periodRows, "tonnageKg");
+  return null;
 };
 
 const getChangeLabel = (change: number | null, metric: BodyMetric) => {
@@ -379,6 +293,87 @@ const getChangeLabel = (change: number | null, metric: BodyMetric) => {
   }
 
   return normalizedChange > 0 ? "Положительная динамика" : "Нужно внимание";
+};
+
+const getBestStrengthSet = (rows: AnalyticsStrengthSet[]) => {
+  const weightedRows = rows.filter((row) => row.weightKg !== null);
+
+  if (weightedRows.length === 0) {
+    return null;
+  }
+
+  return weightedRows.reduce((bestSet, currentSet) => {
+    const bestWeight = bestSet.weightKg ?? 0;
+    const currentWeight = currentSet.weightKg ?? 0;
+
+    if (currentWeight > bestWeight) {
+      return currentSet;
+    }
+
+    if (
+      currentWeight === bestWeight &&
+      currentSet.repetitions > bestSet.repetitions
+    ) {
+      return currentSet;
+    }
+
+    return bestSet;
+  });
+};
+
+const getExerciseWorkoutSummaries = (
+  rows: AnalyticsStrengthSet[],
+): ExerciseWorkoutSummary[] => {
+  const rowsByDate = rows.reduce<Map<string, AnalyticsStrengthSet[]>>(
+    (accumulator, row) => {
+      const currentRows = accumulator.get(row.trainingDate) ?? [];
+
+      accumulator.set(row.trainingDate, [...currentRows, row]);
+
+      return accumulator;
+    },
+    new Map(),
+  );
+
+  return [...rowsByDate.entries()]
+    .map(([date, dateRows]) => ({
+      date,
+      sets: [...dateRows].sort(
+        (firstSet, secondSet) => firstSet.setNumber - secondSet.setNumber,
+      ),
+      maxWeightKg: getStrengthMetricValue(dateRows, "maxWeightKg"),
+      totalRepetitions:
+        getStrengthMetricValue(dateRows, "repetitions") ?? 0,
+      setCount: dateRows.length,
+    }))
+    .sort((firstSummary, secondSummary) =>
+      firstSummary.date.localeCompare(secondSummary.date),
+    );
+};
+
+const formatStrengthSetInline = (setRow: AnalyticsStrengthSet) => {
+  const metricsText =
+    setRow.weightKg === null
+      ? `${setRow.repetitions} раз`
+      : `${formatNumber(setRow.weightKg)}х${setRow.repetitions}`;
+  const notesText = setRow.notes.trim();
+
+  return notesText ? `${metricsText} ${notesText}` : metricsText;
+};
+
+const formatStrengthSetSummary = (setRow: AnalyticsStrengthSet | null) =>
+  setRow ? formatStrengthSetInline(setRow) : "—";
+
+const formatExerciseProgress = (change: number | null) => {
+  if (change === null) {
+    return "—";
+  }
+
+  if (Math.abs(change) < 0.01) {
+    return "0 кг";
+  }
+
+  return `${change > 0 ? "+" : ""}${formatNumber(change)} кг`;
 };
 
 function ChartIcon() {
@@ -557,8 +552,7 @@ function Analytics() {
     useState<BodyMetricKey>("weightKg");
   const [selectedExerciseName, setSelectedExerciseName] = useState("");
   const [selectedStrengthMetricKey, setSelectedStrengthMetricKey] =
-    useState<StrengthMetricKey>("tonnageKg");
-  const [selectedTrainingDate, setSelectedTrainingDate] = useState("");
+    useState<StrengthMetricKey>("maxWeightKg");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [strengthErrorMessage, setStrengthErrorMessage] = useState<string | null>(
@@ -748,12 +742,7 @@ function Analytics() {
             setNumber: setRow.set_number,
             weightKg: setRow.weight_kg === null ? null : Number(setRow.weight_kg),
             repetitions: setRow.repetitions,
-            intensity: setRow.intensity,
             notes: setRow.notes ?? "",
-            tonnageKg:
-              setRow.weight_kg === null
-                ? null
-                : Number(setRow.weight_kg) * setRow.repetitions,
           };
         })
         .filter((setRow): setRow is AnalyticsStrengthSet => setRow !== null);
@@ -828,81 +817,81 @@ function Analytics() {
   const activeExerciseName = exerciseNames.includes(selectedExerciseName)
     ? selectedExerciseName
     : exerciseNames[0] ?? "";
-  const selectedExerciseSets = selectedClientStrengthSets.filter(
-    (setRow) => setRow.exerciseName === activeExerciseName,
-  );
-  const trainingDates = useMemo(
+  const selectedExerciseSets = useMemo(
     () =>
-      [...new Set(selectedExerciseSets.map((setRow) => setRow.trainingDate))].sort(
-        (firstDate, secondDate) => secondDate.localeCompare(firstDate),
+      selectedClientStrengthSets.filter(
+        (setRow) => setRow.exerciseName === activeExerciseName,
       ),
+    [activeExerciseName, selectedClientStrengthSets],
+  );
+  const selectedExerciseSummaries = useMemo(
+    () => getExerciseWorkoutSummaries(selectedExerciseSets),
     [selectedExerciseSets],
   );
-  const activeTrainingDate = trainingDates.includes(selectedTrainingDate)
-    ? selectedTrainingDate
-    : trainingDates[0] ?? "";
   const selectedStrengthMetric =
     strengthMetrics.find(
       (metric) => metric.key === selectedStrengthMetricKey,
     ) ?? strengthMetrics[0];
-  const strengthMetricPoints = [...new Set(
-    selectedExerciseSets.map((setRow) => setRow.trainingDate),
-  )]
-    .sort()
-    .map((date) => ({
-      date,
-      value: getStrengthMetricValue(
-        selectedExerciseSets.filter((setRow) => setRow.trainingDate === date),
-        selectedStrengthMetric.key,
-      ),
+  const strengthMetricPoints = selectedExerciseSummaries
+    .map((summary) => ({
+      date: summary.date,
+      value: getStrengthMetricValue(summary.sets, selectedStrengthMetric.key),
     }))
     .filter((point): point is TrendPoint => point.value !== null);
-  const selectedExerciseWeights = selectedExerciseSets
-    .map((setRow) => setRow.weightKg)
-    .filter((value): value is number => value !== null);
-  const selectedExerciseMaxWeight =
-    selectedExerciseWeights.length > 0
-      ? Math.max(...selectedExerciseWeights)
+  const firstExerciseSummary = selectedExerciseSummaries[0] ?? null;
+  const latestExerciseSummary = selectedExerciseSummaries.at(-1) ?? null;
+  const bestExerciseSet = getBestStrengthSet(selectedExerciseSets);
+  const latestBestExerciseSet = getBestStrengthSet(
+    latestExerciseSummary?.sets ?? [],
+  );
+  const maxWeightChange =
+    firstExerciseSummary?.maxWeightKg !== null &&
+    firstExerciseSummary?.maxWeightKg !== undefined &&
+    latestExerciseSummary?.maxWeightKg !== null &&
+    latestExerciseSummary?.maxWeightKg !== undefined
+      ? latestExerciseSummary.maxWeightKg - firstExerciseSummary.maxWeightKg
       : null;
-  const selectedWorkoutTonnage = getTonnageForPeriod(
-    selectedExerciseSets,
-    activeTrainingDate,
-    "workout",
+  const selectedExerciseSetCount = selectedExerciseSets.length;
+  const selectedExerciseTotalRepetitions = selectedExerciseSets.reduce(
+    (total, setRow) => total + setRow.repetitions,
+    0,
   );
-  const selectedWeekTonnage = getTonnageForPeriod(
-    selectedExerciseSets,
-    activeTrainingDate,
-    "week",
-  );
-  const selectedMonthTonnage = getTonnageForPeriod(
-    selectedExerciseSets,
-    activeTrainingDate,
-    "month",
-  );
-  const tonnageCards = [
+  const recentExerciseSummaries = [...selectedExerciseSummaries]
+    .reverse()
+    .slice(0, 6);
+  const exerciseInsightCards = [
     {
-      key: "workout",
-      label: "Тоннаж тренировки",
-      periodLabel: activeTrainingDate
-        ? formatTonnagePeriodRange(activeTrainingDate, "workout")
-        : "Выберите тренировку",
-      value: selectedWorkoutTonnage,
+      key: "latest",
+      label: "Последняя тренировка",
+      value: formatStrengthSetSummary(latestBestExerciseSet),
+      description: latestExerciseSummary
+        ? formatDate(latestExerciseSummary.date)
+        : "Нет данных",
     },
     {
-      key: "week",
-      label: "Тоннаж недели",
-      periodLabel: activeTrainingDate
-        ? formatTonnagePeriodRange(activeTrainingDate, "week")
-        : "Выберите тренировку",
-      value: selectedWeekTonnage,
+      key: "best",
+      label: "Лучший подход",
+      value: formatStrengthSetSummary(bestExerciseSet),
+      description: bestExerciseSet
+        ? formatDate(bestExerciseSet.trainingDate)
+        : "Нет данных",
     },
     {
-      key: "month",
-      label: "Тоннаж месяца",
-      periodLabel: activeTrainingDate
-        ? formatTonnagePeriodRange(activeTrainingDate, "month")
-        : "Выберите тренировку",
-      value: selectedMonthTonnage,
+      key: "progress",
+      label: "Прогресс веса",
+      value: formatExerciseProgress(maxWeightChange),
+      description:
+        firstExerciseSummary && latestExerciseSummary
+          ? `${formatShortDate(firstExerciseSummary.date)} -> ${formatShortDate(
+              latestExerciseSummary.date,
+            )}`
+          : "Недостаточно данных",
+    },
+    {
+      key: "workouts",
+      label: "Тренировок",
+      value: String(selectedExerciseSummaries.length),
+      description: `${selectedExerciseSetCount} подходов, ${selectedExerciseTotalRepetitions} повторов`,
     },
   ];
   const clientsWithMeasurements = clients.filter((client) =>
@@ -1285,40 +1274,29 @@ function Analytics() {
             Силовые показатели
           </h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Аналитика по выбранному упражнению, тоннажу и динамике силовых
-            показателей
+            Выберите упражнение и смотрите прогресс по нему без общего журнала
+            подходов.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {tonnageCards.map((card) => (
+          {exerciseInsightCards.map((card) => (
             <div
               key={card.key}
               className="rounded-lg bg-[var(--surface-soft)] p-4"
             >
               <p className="text-sm text-[var(--text-muted)]">{card.label}</p>
-              <p className="mt-2 text-2xl font-bold text-[var(--text)]">
-                {formatNumber(card.value)} кг
+              <p className="mt-2 truncate text-2xl font-bold text-[var(--text)]">
+                {card.value}
               </p>
               <p className="mt-2 text-xs text-[var(--text-muted)]">
-                {card.periodLabel}
+                {card.description}
               </p>
             </div>
           ))}
-          <div className="rounded-lg bg-[var(--surface-soft)] p-4">
-            <p className="text-sm text-[var(--text-muted)]">
-              Максимальный вес упражнения
-            </p>
-            <p className="mt-2 text-2xl font-bold text-[var(--text)]">
-              {formatNumber(selectedExerciseMaxWeight)} кг
-            </p>
-            <p className="mt-2 text-xs text-[var(--text-muted)]">
-              За весь период
-            </p>
-          </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="block min-w-0">
             <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
               Упражнение
@@ -1343,29 +1321,7 @@ function Analytics() {
 
           <label className="block min-w-0">
             <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              Тренировка
-            </span>
-            <select
-              value={activeTrainingDate}
-              onChange={(event) => setSelectedTrainingDate(event.target.value)}
-              disabled={trainingDates.length === 0}
-              className="focus-ring min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
-            >
-              {trainingDates.length === 0 ? (
-                <option value="">Нет тренировок</option>
-              ) : (
-                trainingDates.map((trainingDate) => (
-                  <option key={trainingDate} value={trainingDate}>
-                    {formatDate(trainingDate)}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-
-          <label className="block min-w-0">
-            <span className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              Показатель
+              График
             </span>
             <select
               value={selectedStrengthMetricKey}
@@ -1395,80 +1351,49 @@ function Analytics() {
             emptyText="Для выбранного упражнения пока нет силовых данных."
           />
         </div>
-      </section>
 
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--text)]">
-              История силовых данных
-            </h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Все упражнения, веса, повторы и интенсивность выбранного клиента
+        <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="font-bold text-[var(--text)]">
+                Последние тренировки упражнения
+              </h3>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                Вес и повторы одной строкой, чтобы быстро увидеть динамику.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-[var(--text-muted)]">
+              {selectedExerciseSummaries.length}
+            </span>
+          </div>
+
+          {recentExerciseSummaries.length === 0 ? (
+            <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
+              Данные появятся после добавления упражнения в тренировочную
+              программу.
             </p>
-          </div>
+          ) : (
+            <div className="mt-4 divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+              {recentExerciseSummaries.map((summary) => (
+                <article
+                  key={summary.date}
+                  className="grid gap-2 px-4 py-3 lg:grid-cols-[140px_minmax(0,1fr)_auto] lg:items-center"
+                >
+                  <p className="font-semibold text-[var(--text)]">
+                    {formatDate(summary.date)}
+                  </p>
+                  <p className="min-w-0 text-sm font-semibold leading-6 text-[var(--text)]">
+                    {summary.sets.map(formatStrengthSetInline).join(" ")}
+                  </p>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Макс. {formatNumber(summary.maxWeightKg)} кг ·{" "}
+                    {summary.totalRepetitions} повт.
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
-
-        {selectedClientStrengthSets.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-soft)] p-5 text-sm text-[var(--text-muted)]">
-            Данные появятся после добавления структурированной программы
-            тренировок.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-xs uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                  <th className="px-3 py-3 font-semibold">Дата</th>
-                  <th className="px-3 py-3 font-semibold">Упражнение</th>
-                  <th className="px-3 py-3 font-semibold">Подход</th>
-                  <th className="px-3 py-3 font-semibold">Вес</th>
-                  <th className="px-3 py-3 font-semibold">Повторы</th>
-                  <th className="px-3 py-3 font-semibold">Интенсивность</th>
-                  <th className="px-3 py-3 font-semibold">Тоннаж</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...selectedClientStrengthSets]
-                  .sort((firstSet, secondSet) =>
-                    secondSet.trainingDate.localeCompare(firstSet.trainingDate),
-                  )
-                  .map((setRow) => (
-                    <tr
-                      key={setRow.id}
-                      className="border-b border-[var(--border)] last:border-b-0"
-                    >
-                      <td className="whitespace-nowrap px-3 py-3 text-[var(--text-muted)]">
-                        {formatDate(setRow.trainingDate)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 font-semibold text-[var(--text)]">
-                        {setRow.exerciseName}
-                      </td>
-                      <td className="px-3 py-3 text-[var(--text-muted)]">
-                        {setRow.setNumber}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-[var(--text-muted)]">
-                        {formatNumber(setRow.weightKg)} кг
-                      </td>
-                      <td className="px-3 py-3 text-[var(--text-muted)]">
-                        {setRow.repetitions}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${intensityClasses[setRow.intensity]}`}
-                        >
-                          {intensityLabels[setRow.intensity]}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-[var(--text-muted)]">
-                        {formatNumber(setRow.tonnageKg)} кг
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </section>
 
       {!isClient && (
