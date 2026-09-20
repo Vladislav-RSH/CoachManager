@@ -207,6 +207,8 @@ const createExerciseDraft = (): WorkoutExerciseDraft => ({
 });
 
 const setPatternSearch = /\d+(?:[.,]\d+)?\s*(?:кг|kg)?\s*[xх×*]\s*\d+/i;
+const setPatternGlobal = /\d+(?:[.,]\d+)?\s*(?:кг|kg)?\s*[xх×*]\s*\d+/gi;
+const rpePattern = /\b(RPE|РПЕ)\s*(\d+(?:[.,]\d+)?)/i;
 
 const normalizeWorkoutNumber = (value: string) =>
   Number(value.trim().replace(",", "."));
@@ -249,6 +251,43 @@ const getTrailingSetNote = (segment: string, matchText: string) =>
     .slice(matchText.length)
     .replace(/^[\s,.;:—–-]+/, "")
     .trim();
+
+const getRpeNote = (value: string) => {
+  const match = value.match(rpePattern);
+
+  if (!match) {
+    return "";
+  }
+
+  return `${match[1].toUpperCase()} ${match[2].replace(",", ".")}`;
+};
+
+const isNumberedBodyweightSet = (
+  value: number,
+  hasWeightUnit: boolean,
+) => Number.isInteger(value) && value >= 1 && value <= 5 && !hasWeightUnit;
+
+const splitWorkoutSetText = (value: string) => {
+  setPatternGlobal.lastIndex = 0;
+
+  const matches = [...value.matchAll(setPatternGlobal)];
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  return matches
+    .map((match, index) => {
+      const startIndex = match.index ?? 0;
+      const endIndex = matches[index + 1]?.index ?? value.length;
+
+      return value
+        .slice(startIndex, endIndex)
+        .replace(/^[\s,;]+|[\s,;]+$/g, "")
+        .trim();
+    })
+    .filter(Boolean);
+};
 
 const parseWorkoutSetSegment = (segment: string): WorkoutSetDraft[] => {
   const cleanSegment = segment.trim();
@@ -336,6 +375,12 @@ const parseWorkoutSetSegment = (segment: string): WorkoutSetDraft[] => {
     return [];
   }
 
+  if (isNumberedBodyweightSet(firstValue, hasWeightUnit)) {
+    return [
+      createSetDraftFromValues(null, repetitions, getRpeNote(trailingNote)),
+    ];
+  }
+
   if (firstValue <= 10 && !hasWeightUnit && Number.isInteger(firstValue)) {
     return createRepeatedSetDrafts(
       firstValue,
@@ -369,8 +414,7 @@ const parseQuickWorkoutLine = (
     .replace(/[\s:—–-]+$/, "")
     .trim();
   const setText = exercisePart.slice(patternIndex);
-  const sets = setText
-    .split(/[,;]+/)
+  const sets = splitWorkoutSetText(setText)
     .flatMap(parseWorkoutSetSegment)
     .filter((set) => set.repetitions.trim());
 
@@ -1796,10 +1840,9 @@ function WorkoutPatterns() {
                   onChange={(event) =>
                     handleQuickWorkoutTextChange(event.target.value)
                   }
-                  placeholder={`Жим лежа 60x10, 65x8, 70x6 | пауза внизу
-Тяга верхнего блока 45x12x3
-Жим гантелей сидя 3x10 22кг
-Планка 3x60 сек`}
+                  placeholder={`Становая тяга 150x5 155x3 160x2
+Подтягивания 1x10 RPE 7, 2x8 RPE 8, 3x6 RPE 9
+Жим гантелей сидя 3x10 22кг`}
                   className="focus-ring min-h-64 w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 font-mono text-sm leading-6 text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
                 />
               </div>
