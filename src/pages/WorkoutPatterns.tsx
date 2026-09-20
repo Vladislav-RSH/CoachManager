@@ -107,18 +107,6 @@ type WorkoutPageDraft = {
 const missingSupabaseMessage =
   "Добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в .env.local.";
 
-const intensityLabels: Record<WorkoutExerciseIntensity, string> = {
-  low: "Легкая",
-  medium: "Средняя",
-  high: "Высокая",
-};
-
-const intensityBadgeClasses: Record<WorkoutExerciseIntensity, string> = {
-  low: "bg-emerald-50 text-emerald-700",
-  medium: "bg-amber-50 text-amber-700",
-  high: "bg-rose-50 text-rose-700",
-};
-
 const padNumber = (value: number) => String(value).padStart(2, "0");
 
 const formatDateKey = (date: Date) =>
@@ -145,18 +133,6 @@ const metricNumberFormatter = new Intl.NumberFormat("ru-RU", {
 
 const formatMetricNumber = (value: number) =>
   metricNumberFormatter.format(value);
-
-const getSetVolume = (exerciseSet: WorkoutExerciseSet) =>
-  exerciseSet.weightKg === null
-    ? null
-    : exerciseSet.weightKg * exerciseSet.repetitions;
-
-const getExerciseVolume = (exercise: WorkoutTrainingExercise) =>
-  exercise.sets.reduce((total, exerciseSet) => {
-    const setVolume = getSetVolume(exerciseSet);
-
-    return total + (setVolume ?? 0);
-  }, 0);
 
 const createDraftId = () =>
   globalThis.crypto?.randomUUID?.() ??
@@ -425,6 +401,29 @@ const formatDraftSetForText = (exerciseSet: WorkoutSetDraft) => {
     : repetitionsText;
 
   return notesText ? `${metricsText} ${notesText}` : metricsText;
+};
+
+const formatTrainingSetInline = (exerciseSet: WorkoutExerciseSet) => {
+  const metricsText =
+    exerciseSet.weightKg === null
+      ? String(exerciseSet.repetitions)
+      : `${formatMetricNumber(exerciseSet.weightKg)}х${
+          exerciseSet.repetitions
+        }`;
+  const notesText = exerciseSet.notes.trim();
+
+  return notesText ? `${metricsText} ${notesText}` : metricsText;
+};
+
+const formatTrainingExerciseInline = (
+  exercise: WorkoutTrainingExercise,
+) => {
+  const setsText = exercise.sets.map(formatTrainingSetInline).join(" ");
+  const notesText = exercise.notes.trim();
+
+  return [exercise.exerciseName, setsText, notesText ? `| ${notesText}` : ""]
+    .filter(Boolean)
+    .join(" ");
 };
 
 const serializeExerciseDraftsToQuickText = (
@@ -2144,123 +2143,16 @@ function WorkoutPatterns() {
                           Для этого дня пока нет отдельных силовых метрик.
                         </p>
                       ) : (
-                        trainingDay.exercises.map((exercise) => {
-                          const exerciseVolume = getExerciseVolume(exercise);
-
-                          return (
-                            <article
-                              key={exercise.id}
-                              className="rounded-lg bg-[var(--surface-soft)] p-4"
-                            >
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                  <h4 className="font-bold text-[var(--text)]">
-                                    {exercise.exerciseName}
-                                  </h4>
-                                  <p className="mt-1 text-sm text-[var(--text-muted)]">
-                                    Подходов: {exercise.sets.length}
-                                  </p>
-                                </div>
-
-                                <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-                                  Объем:{" "}
-                                  {exerciseVolume > 0
-                                    ? `${formatMetricNumber(exerciseVolume)} кг`
-                                    : "не указан"}
-                                </span>
-                              </div>
-
-                              {exercise.notes && (
-                                <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-                                  {exercise.notes}
-                                </p>
-                              )}
-
-                              <div className="mt-3 space-y-2">
-                                {exercise.sets.length === 0 ? (
-                                  <p className="rounded-lg border border-dashed border-[var(--border)] bg-white/70 p-3 text-sm text-[var(--text-muted)]">
-                                    У упражнения пока нет подходов.
-                                  </p>
-                                ) : (
-                                  exercise.sets.map((exerciseSet) => {
-                                    const setVolume =
-                                      getSetVolume(exerciseSet);
-
-                                    return (
-                                      <div
-                                        key={exerciseSet.id}
-                                        className="rounded-lg bg-white p-3"
-                                      >
-                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                          <p className="font-semibold text-[var(--text)]">
-                                            Подход {exerciseSet.setNumber}
-                                          </p>
-                                          <span
-                                            className={[
-                                              "w-fit rounded-full px-3 py-1 text-xs font-semibold",
-                                              intensityBadgeClasses[
-                                                exerciseSet.intensity
-                                              ],
-                                            ].join(" ")}
-                                          >
-                                            {
-                                              intensityLabels[
-                                                exerciseSet.intensity
-                                              ]
-                                            }
-                                          </span>
-                                        </div>
-
-                                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                          <div className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                                              Вес
-                                            </p>
-                                            <p className="mt-1 font-bold text-[var(--text)]">
-                                              {exerciseSet.weightKg === null
-                                                ? "Не указан"
-                                                : `${formatMetricNumber(
-                                                    exerciseSet.weightKg,
-                                                  )} кг`}
-                                            </p>
-                                          </div>
-
-                                          <div className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                                              Повторы
-                                            </p>
-                                            <p className="mt-1 font-bold text-[var(--text)]">
-                                              {exerciseSet.repetitions}
-                                            </p>
-                                          </div>
-
-                                          <div className="rounded-lg bg-[var(--surface-soft)] px-3 py-2">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
-                                              Объем
-                                            </p>
-                                            <p className="mt-1 font-bold text-[var(--text)]">
-                                              {setVolume === null
-                                                ? "Не указан"
-                                                : `${formatMetricNumber(
-                                                    setVolume,
-                                                  )} кг`}
-                                            </p>
-                                          </div>
-                                        </div>
-
-                                        {exerciseSet.notes && (
-                                          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-                                            {exerciseSet.notes}
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  })
-                                )}
-                              </div>
-                            </article>
-                          );
-                        })
+                        trainingDay.exercises.map((exercise) => (
+                          <article
+                            key={exercise.id}
+                            className="rounded-lg bg-[var(--surface-soft)] px-4 py-3"
+                          >
+                            <p className="text-sm font-semibold leading-6 text-[var(--text)] sm:text-base">
+                              {formatTrainingExerciseInline(exercise)}
+                            </p>
+                          </article>
+                        ))
                       )}
                     </div>
                   </li>
